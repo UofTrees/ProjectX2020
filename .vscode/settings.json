@@ -1,0 +1,18 @@
+{
+    "python.autoComplete.addBrackets": true,
+    "python.formatting.provider": "black",
+    "python.linting.flake8Enabled": true,
+    "python.linting.mypyEnabled": true,
+    "python.venvPath": "~/.cache/pypoetry/virtualenvs",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    },
+    "python.analysis.completeFunctionParens": true,
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintArgs": [
+        "--generated-members=numpy.* ,torch.*"
+    ],
+    "editor.defaultFormatter": "ms-python.python",
+    "python.sortImports.path": "isort"
+}
