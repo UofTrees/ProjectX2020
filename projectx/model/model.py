@@ -66,9 +66,9 @@ class Model(torch.nn.Module):
 
         # We integrate `h` through time for the relevant timesteps.
         # This gives us a sequence of latent encodings corresponding to the time steps.
-        hs = torchdiffeq.odeint(self.odefunc, h, time_window, rtol=1e-3, atol=1e-5).to(
-            self.device
-        )
+        hs = torchdiffeq.odeint(
+            self.odefunc, h, time_window, rtol=self.hyperparams.rtol, atol=self.hyperparams.atol
+        ).to(self.device)
 
         # Decode the hidden states integrated through time to the infections.
         return self.decoder(hs)

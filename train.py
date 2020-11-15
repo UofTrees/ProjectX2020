@@ -22,6 +22,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--window_length", default=64, type=int)
     parser.add_argument("--batch_size", default=1, type=int)
     parser.add_argument("--num_epochs", default=256, type=int)
+    parser.add_argument("--rtol", default=1e-3, type=float)
+    parser.add_argument("--atol", default=1e-5, type=float)
 
     return parser.parse_args()
 
@@ -38,6 +40,8 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
         window_length=args.window_length,
         batch_size=args.batch_size,
         num_epochs=args.num_epochs,
+        rtol=args.rtol,
+        atol=args.atol
     )
 
 
@@ -51,6 +55,8 @@ def get_job_id(hyperparams: Hyperparameters) -> str:
         + f"_window{hyperparams.window_length}"
         + f"_batch{hyperparams.batch_size}"
         + f"_epochs{hyperparams.num_epochs}"
+        + f"_rtol{hyperparams.rtol}"
+        + f"_atol{hyperparams.atol}"
     )
 
 
@@ -58,13 +64,12 @@ def train() -> None:
     hyperparams = get_hyperparameters(parse_args())
     job_id = get_job_id(hyperparams)
 
-    # TODO: autogen folders
-    # Where to log and save models
-    root = pathlib.Path("logs").resolve()
+    # Generate folders where to log and save models
+    root = pathlib.Path("results").resolve()
     if not root.exists():
         root.mkdir()
 
-    logs_dir = root / "output"
+    logs_dir = root / "logs"
     if not logs_dir.exists():
         logs_dir.mkdir()
     models_dir = root / "models"
@@ -86,6 +91,7 @@ def train() -> None:
         device = torch.device("cpu")
         log("Running on CPU")
 
+    # Get the data and model
     data_path = pathlib.Path("data/toy.csv").resolve()
 
     data = Data(
@@ -103,6 +109,7 @@ def train() -> None:
         lr=hyperparams.lr,
     )
 
+    # Train
     log("Starting...")
 
     num_windows = data.num_windows

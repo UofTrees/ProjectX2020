@@ -14,3 +14,5 @@ class Hyperparameters:
     window_length: int
     batch_size: int
     num_epochs: int
+    rtol: float
+    atol: float

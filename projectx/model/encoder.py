@@ -36,16 +36,23 @@ class Encoder(torch.nn.Module):
     def forward(
         self, x: torch.Tensor, h: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        x_original_shape = x.shape  # (seq_len, batch_size, input_dim)
+        """
+        `x` is arranged sequentially backwards in time
+        It will now be encoded and the RNN will find a latent representation for the initial state of each window
+        """
+        
+        # Encode x
+        x_original_shape = x.shape  # (window_length, batch_size, input_dim)
         x = x.view(x.shape[0] * x.shape[1], x.shape[2])
         for fc in self.fcs:
             x = fc(x)
             x = torch.tanh(x)
+
         x = x.view(
             x_original_shape[0], x_original_shape[1], x.shape[1]
-        )  # (seq_len, batch_size, fc_dims[-1])
+        )  # (window_length, batch_size, fc_dims[-1])
 
-        # In the paper, they just give h to a single-layer recognition network (RNN).
-        # Here, we also take x into account.
-        y, h = self.rnn(x, h)  # Remember: y is simply h_t for each t
+        # Make the RNN consume `x`, which is backwards in time
+        # The returned `h` contains a latent initial state for each window
+        y, h = self.rnn(x, h)
         return y, h

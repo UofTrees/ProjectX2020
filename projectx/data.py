@@ -84,6 +84,14 @@ class Data:
         )
 
     def weather_at_time(self, t: torch.Tensor) -> torch.Tensor:
+        """
+        `t` is a scalar tensor due to how `odeint` works
+
+        Obtain estimated weather conditions at that time `t`
+        This is done by linearly interpolating between 2 adjacent timepoints
+        for which we have weather conditions
+        """
+        
         inbetween = (
             ((t % self._normalized_timestep_delta) / self._normalized_timestep_delta)
             .unsqueeze(1)
@@ -100,7 +108,6 @@ class Data:
 
         right_index = left_index + 1
 
-        # TODO: this will crash if OOR
         left_weather = self._normalized_weather_tensor[left_index]
         right_weather = self._normalized_weather_tensor[right_index]
 
@@ -118,7 +125,11 @@ class Data:
     def _dataframe_to_tensors(
         self, data: pd.DataFrame
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        # Doesn't include any timing information right now because all the data is equally spaced.
+        """
+        Convert the data to tensors
+        This doesn't include any timing information because all the data is equally spaced.
+        """
+        
         return (
             torch.Tensor(
                 [
@@ -152,17 +163,18 @@ class Data:
     def _data_windows(
         data: torch.Tensor, *, window_length: int, batch_size: int
     ) -> Generator[torch.Tensor, None, None]:
-        """Send one batch of `batch_size` windows.
-
-        Each window has `window_length` datapoints.
         """
+        Send one batch of `batch_size` windows.
+        Each window has `window_length` datapoints.
+
+        Output shape is (window_length, batch_size, data.shape[1])
+        """
+
         data_windows = []
         for i in range(0, data.shape[0] - window_length, window_length):
             window_slice = slice(i, i + window_length)
             data_windows.append(data[window_slice])
             if (i + 1) % batch_size == 0 or i == data.shape[0] - window_length:
-                # creating a generator that can be easily looped over
-                # (window_length [== seq_len], batch_size, input_dim)
                 yield torch.stack(data_windows, dim=1)
                 data_windows = []
 
