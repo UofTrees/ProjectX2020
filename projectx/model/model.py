@@ -48,7 +48,7 @@ class Model(torch.nn.Module):
         infect_window: torch.Tensor,
         time_window: torch.Tensor,
     ) -> torch.Tensor:
-        # TODO: we need to hold back some of the window
+    
         data_window = torch.cat((weather_window, infect_window), dim=2)
         reversed_data_window = data_window.flip(0)
 

@@ -69,6 +69,14 @@ class Data:
         self._normalized_timestep_delta = self._TIMESTEP_DELTA / max_time
 
     @property
+    def infect_means(self) -> float:
+        return self._infect_means
+
+    @property
+    def infect_stds(self) -> float:
+        return self._infect_stds
+
+    @property
     def num_windows(self) -> int:
         return (
             self._normalized_time_tensor.shape[0] - self._window_length
@@ -91,7 +99,7 @@ class Data:
         This is done by linearly interpolating between 2 adjacent timepoints
         for which we have weather conditions
         """
-        
+
         inbetween = (
             ((t % self._normalized_timestep_delta) / self._normalized_timestep_delta)
             .unsqueeze(1)

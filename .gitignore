@@ -138,3 +138,5 @@ dmypy.json
 cython_debug/
 
 results/
+jobs/
+run_all.sh
