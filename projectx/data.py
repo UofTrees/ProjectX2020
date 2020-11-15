@@ -99,13 +99,14 @@ class Data:
         This is done by linearly interpolating between 2 adjacent timepoints
         for which we have weather conditions
         """
+        normalized_timestep_delta = self._normalized_timestep_delta.to(self._device)
 
         inbetween = (
-            ((t % self._normalized_timestep_delta) / self._normalized_timestep_delta)
+            ((t % normalized_timestep_delta) / normalized_timestep_delta)
             .unsqueeze(1)
             .to(self._device)
         )
-        left_index = (t // self._normalized_timestep_delta).long().to(self._device)
+        left_index = (t // normalized_timestep_delta).long().to(self._device)
 
         if any(torch.isnan(t)):
             raise ValueError()

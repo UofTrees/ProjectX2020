@@ -57,6 +57,7 @@ with open("run_all.sh", "w") as allf:
                                                 )
                                             
                                             job_file = job_dir / f"{job}.job"
+                                            job_out_file = job_dir / f"{job}.out"
 
                                             with open(job_file, "w") as f:
                                                 f.write(f"#!/bin/bash\n")
@@ -68,7 +69,7 @@ with open("run_all.sh", "w") as allf:
                                                 f.write(f"#SBATCH --cpus-per-task={CPU}\n")
                                                 f.write(f"#SBATCH --mem={RAM}\n")
                                                 f.write(f"#SBATCH --job-name={job}\n")
-                                                f.write(f"#SBATCH --output=%x.out\n")
+                                                f.write(f"#SBATCH --output={job_out_file}\n")
                                                 f.write(f"cd {root}\n")
 
                                                 # Need to separate items in lists with spaces to pass them as args
