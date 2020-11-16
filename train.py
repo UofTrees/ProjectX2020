@@ -119,8 +119,8 @@ def train() -> None:
     log("Training starts")
 
     num_windows = data.num_windows
-    lowest_loss_total: Optional[float] = None
-    for epoch in range(hyperparams.num_epochs):
+    lowest_avg_loss: Optional[float] = None
+    for epoch in range(1):
         loss_total = 0.0
         for i, (time_window, weather_window, infect_window) in enumerate(
             data.windows()
@@ -142,10 +142,11 @@ def train() -> None:
             loss.backward()
             optimizer.step()
 
-        log(f"\nEpoch {epoch:02d}: {loss_total:1.4f}")
+        avg_loss = loss_total / data.num_windows
+        log(f"\nEpoch {epoch:02d}: {avg_loss:1.4f}")
 
-        if lowest_loss_total is None or loss_total < lowest_loss_total:
-            lowest_loss_total = loss_total
+        if lowest_avg_loss is None or avg_loss < lowest_avg_loss:
+            lowest_avg_loss = avg_loss
             log(f"Saving model at epoch {epoch:02d}\n")
             torch.save(model, model_filepath)
 
