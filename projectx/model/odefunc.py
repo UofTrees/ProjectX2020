@@ -8,6 +8,7 @@ from projectx.utils import pairwise
 class ODEFunc(torch.nn.Module):
     data: Data
     device: torch.device
+    start_time: int
 
     def __init__(
         self,
@@ -43,6 +44,7 @@ class ODEFunc(torch.nn.Module):
         if x.dim() == 0:
             x = x.unsqueeze(0)
 
+        t = t + self.start_time
         weather = self.data.weather_at_time(t)
         x = torch.cat([weather, x], dim=-1).to(self.device)
 

@@ -137,7 +137,7 @@ class Data:
         Convert the data to tensors
         This doesn't include any timing information because all the data is equally spaced.
         """
-        
+
         return (
             torch.Tensor(
                 [

@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
     parser.add_argument("--batch_size", default=1, type=int)
-    parser.add_argument("--num_epochs", default=256, type=int)
+    parser.add_argument("--num_epochs", default=32, type=int)
     parser.add_argument("--rtol", default=1e-3, type=float)
     parser.add_argument("--atol", default=1e-5, type=float)
 
@@ -43,7 +43,7 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
         batch_size=args.batch_size,
         num_epochs=args.num_epochs,
         rtol=args.rtol,
-        atol=args.atol
+        atol=args.atol,
     )
 
 
@@ -120,7 +120,7 @@ def train() -> None:
 
     num_windows = data.num_windows
     lowest_avg_loss: Optional[float] = None
-    for epoch in range(1):
+    for epoch in range(hyperparams.num_epochs):
         loss_total = 0.0
         for i, (time_window, weather_window, infect_window) in enumerate(
             data.windows()
@@ -178,7 +178,7 @@ def train() -> None:
             ground_truth.append(gt)
 
     x = np.arange(200)
-    plt.figure(figsize=(20,10))
+    plt.figure(figsize=(20, 10))
     plt.plot(x, preds[:200], label="prediction")
     plt.plot(x, ground_truth[:200], label="ground_truth")
     plt.xlabel("Step")
@@ -188,6 +188,7 @@ def train() -> None:
     plt.savefig(plot_filepath)
 
     log("Done")
+
 
 if __name__ == "__main__":
     train()

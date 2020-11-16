@@ -64,6 +64,11 @@ class Model(torch.nn.Module):
         time_window = time_window.squeeze()
         h = h.squeeze(dim=0)
 
+        # Treat time steps as starting from 0
+        start_time = time_window[0]
+        self.odefunc.start_time = start_time
+        time_window = time_window - start_time
+
         # We integrate `h` through time for the relevant timesteps.
         # This gives us a sequence of latent encodings corresponding to the time steps.
         hs = torchdiffeq.odeint(
