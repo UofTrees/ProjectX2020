@@ -18,14 +18,14 @@ if not job_dir.exists():
 
 
 # Hyperparams to try
-lr_list = [1e-3] # [1e-3, 1e-4]
+lr_list = [1e-3]  # [1e-3, 1e-4]
 encoder_fc_dims_list = [[8]]
 hidden_dims_list = [2]
-odefunc_fc_dims_list = [[4]] # [[4], [8]]
+odefunc_fc_dims_list = [[4]]  # [[4], [8]]
 decoder_fc_dims_list = [[8]]
-window_length_list = [128] # [64, 96, 128]
-batch_size_list = [1] # [1, 5, 10]
-num_epochs_list = [256]
+window_length_list = [128]  # [64, 96, 128]
+batch_size_list = [1]  # [1, 5, 10]
+num_epochs_list = [32]
 rtol_list = [1e-3]
 atol_list = [1e-5]
 
@@ -54,8 +54,8 @@ with open("run_all.sh", "w") as allf:
                                                 + f"_epochs{num_epochs}"
                                                 + f"_rtol{rtol}"
                                                 + f"_atol{atol}"
-                                                )
-                                            
+                                            )
+
                                             job_file = job_dir / f"{job}.job"
                                             job_out_file = job_dir / f"{job}.out"
 
@@ -66,16 +66,26 @@ with open("run_all.sh", "w") as allf:
                                                 f.write(f"#SBATCH --gres={gres}\n")
                                                 f.write(f"#SBATCH --qos={QOS}\n")
                                                 f.write(f"#SBATCH -p {partition}\n")
-                                                f.write(f"#SBATCH --cpus-per-task={CPU}\n")
+                                                f.write(
+                                                    f"#SBATCH --cpus-per-task={CPU}\n"
+                                                )
                                                 f.write(f"#SBATCH --mem={RAM}\n")
                                                 f.write(f"#SBATCH --job-name={job}\n")
-                                                f.write(f"#SBATCH --output={job_out_file}\n")
+                                                f.write(
+                                                    f"#SBATCH --output={job_out_file}\n"
+                                                )
                                                 f.write(f"cd {root}\n")
 
                                                 # Need to separate items in lists with spaces to pass them as args
-                                                encoder_fc_dims_arg = " ".join(map(str, encoder_fc_dims))
-                                                odefunc_fc_dims_arg = " ".join(map(str, odefunc_fc_dims))
-                                                decoder_fc_dims_arg = " ".join(map(str, decoder_fc_dims))
+                                                encoder_fc_dims_arg = " ".join(
+                                                    map(str, encoder_fc_dims)
+                                                )
+                                                odefunc_fc_dims_arg = " ".join(
+                                                    map(str, odefunc_fc_dims)
+                                                )
+                                                decoder_fc_dims_arg = " ".join(
+                                                    map(str, decoder_fc_dims)
+                                                )
 
                                                 f.write(
                                                     f"python3 train.py "
