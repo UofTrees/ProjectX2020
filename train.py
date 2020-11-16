@@ -164,7 +164,7 @@ def train() -> None:
             if i == 200:
                 break
 
-            infect_hat = model(
+            infect_hat = best_model(
                 time_window=time_window,
                 weather_window=weather_window,
                 infect_window=infect_window,
