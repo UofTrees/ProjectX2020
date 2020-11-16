@@ -48,16 +48,14 @@ class Model(torch.nn.Module):
         infect_window: torch.Tensor,
         time_window: torch.Tensor,
     ) -> torch.Tensor:
-    
+
         data_window = torch.cat((weather_window, infect_window), dim=2)
         reversed_data_window = data_window.flip(0)
 
         # We feed the data to the encoder reversed so it comes up with `h` corresponding
         # to the latent encoding of the first element in the sequence chronologically,
         # with information from the future. We integrate that through time.
-        h_init = torch.randn(
-            1, self.hyperparams.batch_size, self.hyperparams.hidden_dims
-        ).to(self.device)
+        h_init = torch.randn(1, 1, self.hyperparams.hidden_dims).to(self.device)
         _, h = self.encoder(reversed_data_window, h_init)
 
         # We squeeze the time and `h` to accommodate the batchless way that `odeint` works.
@@ -72,7 +70,11 @@ class Model(torch.nn.Module):
         # We integrate `h` through time for the relevant timesteps.
         # This gives us a sequence of latent encodings corresponding to the time steps.
         hs = torchdiffeq.odeint(
-            self.odefunc, h, time_window, rtol=self.hyperparams.rtol, atol=self.hyperparams.atol
+            self.odefunc,
+            h,
+            time_window,
+            rtol=self.hyperparams.rtol,
+            atol=self.hyperparams.atol,
         ).to(self.device)
 
         # Decode the hidden states integrated through time to the infections.

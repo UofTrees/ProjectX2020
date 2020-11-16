@@ -12,7 +12,6 @@ class Hyperparameters:
     odefunc_fc_dims: List[int]
     decoder_fc_dims: List[int]
     window_length: int
-    batch_size: int
     num_epochs: int
     rtol: float
     atol: float

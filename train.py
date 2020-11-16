@@ -22,7 +22,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--odefunc_fc_dims", nargs="+", default=[4], type=int)
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
-    parser.add_argument("--batch_size", default=1, type=int)
     parser.add_argument("--num_epochs", default=32, type=int)
     parser.add_argument("--rtol", default=1e-3, type=float)
     parser.add_argument("--atol", default=1e-5, type=float)
@@ -40,7 +39,6 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
         odefunc_fc_dims=args.odefunc_fc_dims,
         decoder_fc_dims=args.decoder_fc_dims,
         window_length=args.window_length,
-        batch_size=args.batch_size,
         num_epochs=args.num_epochs,
         rtol=args.rtol,
         atol=args.atol,
@@ -55,7 +53,6 @@ def get_job_id(hyperparams: Hyperparameters) -> str:
         + f"_ode{hyperparams.odefunc_fc_dims}"
         + f"_dec{hyperparams.decoder_fc_dims}"
         + f"_window{hyperparams.window_length}"
-        + f"_batch{hyperparams.batch_size}"
         + f"_epochs{hyperparams.num_epochs}"
         + f"_rtol{hyperparams.rtol}"
         + f"_atol{hyperparams.atol}"
@@ -104,7 +101,7 @@ def train() -> None:
         data_path=data_path,
         device=device,
         window_length=hyperparams.window_length,
-        batch_size=hyperparams.batch_size,
+        batch_size=1,
     )
 
     model = Model(data=data, hyperparams=hyperparams, device=device)
