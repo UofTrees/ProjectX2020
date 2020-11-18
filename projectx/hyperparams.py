@@ -11,6 +11,7 @@ class Hyperparameters:
     hidden_dims: int
     odefunc_fc_dims: List[int]
     decoder_fc_dims: List[int]
+    variance: float
     window_length: int
     num_epochs: int
     rtol: float

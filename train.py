@@ -2,9 +2,9 @@ import argparse
 import pathlib
 from typing import Optional
 
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
 
 from projectx.data import Data
 from projectx.hyperparams import Hyperparameters
@@ -38,6 +38,7 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
         hidden_dims=args.hidden_dims,
         odefunc_fc_dims=args.odefunc_fc_dims,
         decoder_fc_dims=args.decoder_fc_dims,
+        variance=0.1,
         window_length=args.window_length,
         num_epochs=args.num_epochs,
         rtol=args.rtol,
@@ -106,7 +107,7 @@ def train() -> None:
 
     model = Model(data=data, hyperparams=hyperparams, device=device)
 
-    criterion = torch.nn.MSELoss()
+    # criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=hyperparams.lr,
@@ -123,12 +124,18 @@ def train() -> None:
             data.windows()
         ):
             optimizer.zero_grad()
-            infect_hat = model(
+
+            infect_mu = model(
                 time_window=time_window,
                 weather_window=weather_window,
                 infect_window=infect_window,
             )
-            loss = criterion(infect_hat.squeeze(), infect_window.squeeze())
+            infect_dist = torch.distributions.normal.Normal(
+                infect_mu.squeeze(), hyperparams.variance
+            )
+
+            # loss = criterion(infect_hat.squeeze(), infect_window.squeeze())
+            loss = -infect_dist.log_prob(infect_window.squeeze()).mean()
 
             print(
                 f"{epoch:02d} ({i:03d}/{num_windows:03d}): {loss.item():>2.4f}",

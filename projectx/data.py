@@ -69,11 +69,11 @@ class Data:
         self._normalized_timestep_delta = self._TIMESTEP_DELTA / max_time
 
     @property
-    def infect_means(self) -> float:
+    def infect_means(self) -> torch.Tensor:
         return self._infect_means
 
     @property
-    def infect_stds(self) -> float:
+    def infect_stds(self) -> torch.Tensor:
         return self._infect_stds
 
     @property
