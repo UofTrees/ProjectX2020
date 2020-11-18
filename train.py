@@ -117,7 +117,7 @@ def train() -> None:
 
     num_windows = data.num_windows
     lowest_avg_loss: Optional[float] = None
-    for epoch in range(1):
+    for epoch in range(hyperparams.num_epochs):
         loss_total = 0.0
         for i, (time_window, weather_window, infect_window) in enumerate(
             data.windows()
