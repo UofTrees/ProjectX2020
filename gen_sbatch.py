@@ -19,10 +19,10 @@ if not job_dir.exists():
 
 # Hyperparams to try
 lr_list = [1e-3]  # [1e-3, 1e-4]
-encoder_fc_dims_list = [[8]]
-hidden_dims_list = [2]
-odefunc_fc_dims_list = [[4]]  # [[4], [8]]
-decoder_fc_dims_list = [[8]]
+encoder_fc_dims_list = [[8, 16, 8]]
+hidden_dims_list = [10]
+odefunc_fc_dims_list = [[4, 8, 8, 4]]  # [[4], [8]]
+decoder_fc_dims_list = [[8, 16, 8]]
 window_length_list = [128]  # [64, 96, 128]
 batch_size_list = [1]  # [1, 5, 10]
 num_epochs_list = [32]
@@ -70,9 +70,9 @@ with open("run_all.sh", "w") as allf:
                                                     f"#SBATCH --cpus-per-task={CPU}\n"
                                                 )
                                                 f.write(f"#SBATCH --mem={RAM}\n")
-                                                f.write(f"#SBATCH --job-name={job}\n")
+                                                f.write(f"#SBATCH --job-name='{job}'\n")
                                                 f.write(
-                                                    f"#SBATCH --output={job_out_file}\n"
+                                                    f"#SBATCH --output='{job_out_file}'\n"
                                                 )
                                                 f.write(f"cd {root}\n")
 
@@ -101,4 +101,4 @@ with open("run_all.sh", "w") as allf:
                                                     + f"--atol={atol}\n"
                                                 )
 
-                                            allf.write(f"sbatch {job_file}\n")
+                                            allf.write(f"sbatch '{job_file}'\n")

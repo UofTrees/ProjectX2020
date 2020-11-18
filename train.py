@@ -95,7 +95,7 @@ def train() -> None:
         log("Running on CPU")
 
     # Get the data and model
-    data_path = pathlib.Path("data/toy.csv").resolve()
+    data_path = pathlib.Path("data/-83.812_10.39.csv").resolve()
 
     data = Data(
         data_path=data_path,
@@ -117,7 +117,7 @@ def train() -> None:
 
     num_windows = data.num_windows
     lowest_avg_loss: Optional[float] = None
-    for epoch in range(hyperparams.num_epochs):
+    for epoch in range(1):
         loss_total = 0.0
         for i, (time_window, weather_window, infect_window) in enumerate(
             data.windows()
