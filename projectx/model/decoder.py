@@ -20,16 +20,12 @@ class Decoder(torch.nn.Module):
                 torch.nn.Linear(input_dim, output_dim)
                 for input_dim, output_dim in pairwise(fc_dims)
             ]
-            + [torch.nn.Linear(fc_dims[-1], fc_dims[-1] * 2)]
-            + [torch.nn.Linear(fc_dims[-1] * 2, fc_dims[-1])]
             + [torch.nn.Linear(fc_dims[-1], output_dim)]
         )
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        for fc in self.fcs[:-3]:
+        for fc in self.fcs[:-1]:
             x = fc(x)
             x = torch.tanh(x)
-        x = self.fcs[-3](x)
-        x = self.fcs[-2](x)
         x = self.fcs[-1](x)
         return x
