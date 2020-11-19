@@ -6,7 +6,7 @@ import argparse
 import pandas as pd
 from Hyperparams import Hyperparameters
 # multivariate data preparation
-from lstm import MV_LSTM
+from rnn import RNNModel
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -45,7 +45,7 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
     X_train, y_train = X[:int(len(X) * 0.9)], y[:int(len(X) * 0.9)]
     X_test, y_test = X[int(len(X) * 0.9):], y[int(len(X) * 0.9):]
 
-    mv_net = MV_LSTM(n_features, n_timesteps)
+    mv_net = RNNModel(n_features, n_timesteps)
     #criterion = torch.nn.MSELoss(reduction='sum')  # reduction='sum' created huge loss value
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=lr)
 
@@ -84,9 +84,7 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
                 mv_net.init_hidden(x_batch.size(0))
                 try:
                     output = mv_net(x_batch)
-                    #batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                    infect_dist = torch.distributions.normal.Normal(output, 0.1)
-                    batch_val_loss = -infect_dist.log_prob(output).mean()
+                    batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
                     val_loss += batch_val_loss.item()
                 except:
                     continue
@@ -106,9 +104,11 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
     plt.xlabel("Steps")
     plt.ylabel("Loss")
     plt.legend()
-    plt.savefig('./MLE Curve for LSTM.jpg')
+    plt.savefig('./MLE Curve for RNN.jpg')
     plt.show()
+
 if __name__ == "__main__":
-    train(path = './toy.csv', save_path= './lstm_state_dict.pt')
+    train(path = './toy.csv', save_path= './rnn_state_dict.pt')
+
 
 

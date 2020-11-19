@@ -1,5 +1,5 @@
 import torch
-
+from data import Data
 class MV_LSTM(torch.nn.Module):
     def __init__(self, n_features, seq_length):
         super(MV_LSTM, self).__init__()
