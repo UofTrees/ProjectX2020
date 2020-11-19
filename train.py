@@ -17,14 +17,14 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--lr", default=1e-3, type=float)
-    parser.add_argument("--encoder_fc_dims", nargs="+", default=[8], type=int)
-    parser.add_argument("--hidden_dims", default=2, type=int)
-    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[4], type=int)
-    parser.add_argument("--decoder_fc_dims", nargs="+", default=[8], type=int)
+    parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
+    parser.add_argument("--hidden_dims", default=10, type=int)
+    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[4, 8, 8, 4], type=int)
+    parser.add_argument("--decoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
     parser.add_argument("--num_epochs", default=32, type=int)
-    parser.add_argument("--rtol", default=1e-3, type=float)
-    parser.add_argument("--atol", default=1e-5, type=float)
+    parser.add_argument("--rtol", default=1e-4, type=float)
+    parser.add_argument("--atol", default=1e-6, type=float)
 
     return parser.parse_args()
 
@@ -81,7 +81,8 @@ def train() -> None:
 
     job_filepath = logs_dir / f"{job_id}.txt"
     model_filepath = models_dir / f"{job_id}.pt"
-    plot_filepath = plots_dir / f"{job_id}.png"
+    inference_plot_filepath = plots_dir / f"{job_id}_inference.png"
+    loss_plot_filepath = plots_dir / f"{job_id}_loss.png"
 
     def log(msg: str):
         with open(job_filepath, "a") as f:
@@ -116,6 +117,7 @@ def train() -> None:
     # Train
     log("Training starts")
 
+    all_avg_loss = []
     num_windows = data.num_windows
     lowest_avg_loss: Optional[float] = None
     for epoch in range(hyperparams.num_epochs):
@@ -147,12 +149,22 @@ def train() -> None:
             optimizer.step()
 
         avg_loss = loss_total / data.num_windows
+        all_avg_loss.append(avg_loss)
         log(f"\nEpoch {epoch:02d}: {avg_loss:1.4f}")
 
         if lowest_avg_loss is None or avg_loss < lowest_avg_loss:
             lowest_avg_loss = avg_loss
             log(f"Saving model at epoch {epoch:02d}\n")
             torch.save(model, model_filepath)
+
+    x = np.arange(hyperparams.num_epochs)
+    plt.figure()
+    plt.plot(x, all_avg_loss, label="loss")
+    plt.xlabel("Step")
+    plt.ylabel("Loss")
+    plt.title("Neural ODE: loss curve")
+    plt.legend(loc="best")
+    plt.savefig(loss_plot_filepath)
 
     # Evaluate
     log("Evaluation starts")
@@ -189,7 +201,7 @@ def train() -> None:
     plt.ylabel("num_infect")
     plt.title("Neural ODE: Prediction vs Ground Truth (first 200 timesteps)")
     plt.legend(loc="best")
-    plt.savefig(plot_filepath)
+    plt.savefig(inference_plot_filepath)
 
     log("Done")
 
