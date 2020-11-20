@@ -46,6 +46,6 @@ with open("eval_all.sh", "w") as allf:
             f.write(f"#SBATCH --output='{job_out_file}'\n")
             f.write(f"cd {root}\n")
 
-            f.write(f"python3 eval.py --job_id={job_id}\n")
+            f.write(f"python3 eval.py --job_id='{job_id}'\n")
 
         allf.write(f"sbatch '{job_file}'\n")
