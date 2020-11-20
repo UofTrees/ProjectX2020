@@ -29,7 +29,7 @@ rtol_list = [1e-4]
 atol_list = [1e-6]
 
 # For each hyperparam combination, create an sbatch file to run
-with open("run_all.sh", "w") as allf:
+with open("train_all.sh", "w") as allf:
 
     for lr in lr_list:
         for encoder_fc_dims in encoder_fc_dims_list:

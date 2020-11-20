@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", default=1e-4, type=float)
     parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--hidden_dims", default=10, type=int)
-    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[], type=int)
+    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[4, 8, 8, 4], type=int)
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
     parser.add_argument("--num_epochs", default=32, type=int)
@@ -190,9 +190,9 @@ def train() -> None:
             # Decode the hidden states integrated through time to the infections.
 
             # Don't normalize
-            pred = infect_hat[1][0][0] * data.infect_stds + data.infect_means
+            pred = infect_hat[1][0][0]  # * data.infect_stds + data.infect_means
             preds.append(pred)
-            gt = infect_window[1][0][0] * data.infect_stds + data.infect_means
+            gt = infect_window[1][0][0]  # * data.infect_stds + data.infect_means
             ground_truth.append(gt)
 
     x = np.arange(200)
