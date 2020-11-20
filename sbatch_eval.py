@@ -27,7 +27,7 @@ job_id_list = [
 
 
 # For each hyperparam combination, create an sbatch file to run
-with open("train_all.sh", "w") as allf:
+with open("eval_all.sh", "w") as allf:
 
     for job_id in job_id_list:
         job_file = job_dir / f"{job_id}.job"
