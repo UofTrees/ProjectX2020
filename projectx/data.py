@@ -116,10 +116,10 @@ class Data:
 
         right_index = left_index + 1
 
-        # left_weather = self._normalized_weather_tensor[left_index]
-        # right_weather = self._normalized_weather_tensor[right_index]
-        left_weather = self._weather_tensor[left_index]
-        right_weather = self._weather_tensor[right_index]
+        left_weather = self._normalized_weather_tensor[left_index]
+        right_weather = self._normalized_weather_tensor[right_index]
+        # left_weather = self._weather_tensor[left_index]
+        # right_weather = self._weather_tensor[right_index]
 
         return left_weather * (1 - inbetween) + right_weather * inbetween
 
@@ -188,11 +188,11 @@ class Data:
                 yield torch.stack(data_windows, dim=1)
                 data_windows = []
 
-    # Give unnormalized weather data and num_infect
+    # Give normalized weather data but unnormalized num_infect
     def _weather_windows(self) -> Generator[torch.Tensor, None, None]:
         yield from self._data_windows(
-            # self._normalized_weather_tensor,
-            self._weather_tensor,
+            self._normalized_weather_tensor,
+            # self._weather_tensor,
             window_length=self._window_length,
             batch_size=self._batch_size,
         )
