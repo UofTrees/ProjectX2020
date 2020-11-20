@@ -188,10 +188,12 @@ def train() -> None:
             )
 
             # Decode the hidden states integrated through time to the infections.
-            pred = infect_hat[1][0][0] * data.infect_stds + data.infect_means
-            preds.append(pred)
-            gt = infect_window[1][0][0] * data.infect_stds + data.infect_means
-            ground_truth.append(gt)
+
+            # Don't normalize
+            # pred = infect_hat[1][0][0] * data.infect_stds + data.infect_means
+            # preds.append(pred)
+            # gt = infect_window[1][0][0] * data.infect_stds + data.infect_means
+            # ground_truth.append(gt)
 
     x = np.arange(200)
     plt.figure(figsize=(20, 10))

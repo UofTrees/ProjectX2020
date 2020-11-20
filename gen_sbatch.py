@@ -18,12 +18,12 @@ if not job_dir.exists():
 
 
 # Hyperparams to try
-lr_list = [1e-3]
+lr_list = [1e-3, 1e-4]
 encoder_fc_dims_list = [[8, 16, 8]]
 hidden_dims_list = [10]
-odefunc_fc_dims_list = [[4, 8, 8, 4], [16, 32, 32, 16]]  # [[4], [8]]
+odefunc_fc_dims_list = [[4, 8, 8, 4], [16, 32, 32, 16]]
 decoder_fc_dims_list = [[8, 16, 8]]
-window_length_list = [64, 128]  # [64, 96, 128]
+window_length_list = [128]
 num_epochs_list = [256]
 rtol_list = [1e-4]
 atol_list = [1e-6]

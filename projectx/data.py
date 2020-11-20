@@ -186,16 +186,17 @@ class Data:
                 yield torch.stack(data_windows, dim=1)
                 data_windows = []
 
+    # Giving unnormalized data
     def _weather_windows(self) -> Generator[torch.Tensor, None, None]:
         yield from self._data_windows(
-            self._normalized_weather_tensor,
+            self._weather_tensor,
             window_length=self._window_length,
             batch_size=self._batch_size,
         )
 
     def _infect_windows(self) -> Generator[torch.Tensor, None, None]:
         yield from self._data_windows(
-            self._normalized_infect_tensor,
+            self._infect_tensor,
             window_length=self._window_length,
             batch_size=self._batch_size,
         )
