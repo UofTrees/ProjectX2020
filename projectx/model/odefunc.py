@@ -23,14 +23,21 @@ class ODEFunc(torch.nn.Module):
         self.data = data
         self.device = device
 
-        input_dim = func_dim + self.data.weather_at_time(torch.Tensor([0]).to(self.device)).shape[1]
+        input_dim = (
+            func_dim
+            + self.data.weather_at_time(torch.Tensor([0]).to(self.device)).shape[1]
+        )
         self.fcs = torch.nn.ModuleList(
-            [torch.nn.Linear(input_dim, fc_dims[0])]
-            + [
-                torch.nn.Linear(input_dim, output_dim)
-                for input_dim, output_dim in pairwise(fc_dims)
-            ]
-            + [torch.nn.Linear(fc_dims[-1], func_dim)]
+            (
+                [torch.nn.Linear(input_dim, fc_dims[0])]
+                + [
+                    torch.nn.Linear(input_dim, output_dim)
+                    for input_dim, output_dim in pairwise(fc_dims)
+                ]
+                + [torch.nn.Linear(fc_dims[-1], func_dim)]
+            )
+            if fc_dims
+            else [torch.nn.Linear(input_dim, func_dim)]
         )
 
         for module in self.fcs.modules():
