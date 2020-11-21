@@ -199,8 +199,8 @@ class Data:
 
     def _infect_windows(self) -> Generator[torch.Tensor, None, None]:
         yield from self._data_windows(
-            # self._normalized_infect_tensor,
-            self._infect_tensor,
+            self._normalized_infect_tensor,
+            #self._infect_tensor,
             window_length=self._window_length,
             batch_size=self._batch_size,
         )

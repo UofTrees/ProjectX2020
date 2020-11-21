@@ -37,7 +37,7 @@ def extrapolate() -> None:
     data = Data(
         data_path=data_path,
         device=device,
-        window_length=200,
+        window_length=250,
         batch_size=1,
     )
     # Need to send different parts of the model to the correct device
@@ -50,9 +50,9 @@ def extrapolate() -> None:
     best_model.odefunc.device = device
 
     # Extrapolate
+    # We'll give the first 100 time steps for it to produce z_t0
+    # We'll then ask it to predict those first 100 and extrapolate the next 150
     print("Extrapolation starts")
-    preds = []
-    ground_truth = []
 
     with torch.no_grad():
         time_window, gt_weather_window, gt_infect_window = next(data.windows())
@@ -64,8 +64,11 @@ def extrapolate() -> None:
                 infect_window=infect_window,
             )
 
-        pred_infect = infect_hat.squeeze(-1).squeeze(-1).numpy()
-        gt_infect = gt_infect_window.squeeze(-1).squeeze(-1).numpy()
+        pred_infect = infect_hat * data.infect_stds + data.infect_means
+        gt_infect = gt_infect_window * data.infect_stds + data.infect_means
+
+        pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
+        gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
 
     #with torch.no_grad():
     #    time_window, gt_weather_window, gt_infect_window = next(data.windows())
@@ -82,7 +85,7 @@ def extrapolate() -> None:
     #    gt_infect = gt_infect_window[10:].squeeze(-1).squeeze(-1).numpy()
 
 
-    x = np.arange(200)
+    x = np.arange(250)
     plt.figure(figsize=(20, 10))
     plt.plot(x, pred_infect, label="prediction")
     plt.plot(x, gt_infect, label="ground_truth")
@@ -93,6 +96,7 @@ def extrapolate() -> None:
     plt.savefig(extrapolation_plot_filepath)
 
     print("Done")
+
 
 
 if __name__ == "__main__":

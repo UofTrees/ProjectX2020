@@ -16,10 +16,10 @@ from projectx.model import Model
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--lr", default=1e-4, type=float)
+    parser.add_argument("--lr", default=1e-3, type=float)
     parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--hidden_dims", default=10, type=int)
-    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[4, 8, 8, 4], type=int)
+    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[16, 32, 32, 16], type=int)
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
     parser.add_argument("--num_epochs", default=32, type=int)
@@ -81,7 +81,7 @@ def train() -> None:
 
     job_filepath = logs_dir / f"{job_id}.txt"
     model_filepath = models_dir / f"{job_id}.pt"
-    inference_plot_filepath = plots_dir / f"{job_id}_inference.png"
+    extrapolation_plot_filepath = plots_dir / f"{job_id}_extrapolation.png"
     loss_plot_filepath = plots_dir / f"{job_id}_loss.png"
 
     def log(msg: str):
@@ -166,46 +166,48 @@ def train() -> None:
     plt.legend(loc="best")
     plt.savefig(loss_plot_filepath)
 
-    # Evaluate
-    log("Evaluation starts")
+    # Extrapolate
+    # We'll give the first 100 time steps for it to produce z_t0
+    # We'll then ask it to predict those first 100 and extrapolate the next 150
+    print("Extrapolation starts")
     best_model = torch.load(model_filepath)
-    preds = []
-    ground_truth = []
 
-    # We currently only look at the first 200 time steps
-    # Need to discuss with Jesse regarding the evaluation strategy
+    # Get data with another window length
+    data = Data(
+        data_path=data_path,
+        device=device,
+        window_length=250,
+        batch_size=1,
+    )
+
     with torch.no_grad():
-        for i, (time_window, weather_window, infect_window) in enumerate(
-            data.windows()
-        ):
-            if i == 200:
-                break
+        time_window, gt_weather_window, gt_infect_window = next(data.windows())
+        weather_window, infect_window = gt_weather_window[:100], gt_infect_window[:100]
 
-            infect_hat = best_model(
+        infect_hat = best_model(
                 time_window=time_window,
                 weather_window=weather_window,
                 infect_window=infect_window,
             )
 
-            # Decode the hidden states integrated through time to the infections.
+        pred_infect = infect_hat * data.infect_stds + data.infect_means
+        gt_infect = gt_infect_window * data.infect_stds + data.infect_means
 
-            # Don't normalize
-            pred = infect_hat[1][0][0]  # * data.infect_stds + data.infect_means
-            preds.append(pred)
-            gt = infect_window[1][0][0]  # * data.infect_stds + data.infect_means
-            ground_truth.append(gt)
+        pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
+        gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
 
-    x = np.arange(200)
+
+    x = np.arange(250)
     plt.figure(figsize=(20, 10))
-    plt.plot(x, preds[:200], label="prediction")
-    plt.plot(x, ground_truth[:200], label="ground_truth")
+    plt.plot(x, pred_infect, label="prediction")
+    plt.plot(x, gt_infect, label="ground_truth")
     plt.xlabel("Step")
     plt.ylabel("num_infect")
-    plt.title("Neural ODE: Prediction vs Ground Truth (first 200 timesteps)")
+    plt.title("Neural ODE: Prediction vs Ground Truth (the last 100 are extrapolation)")
     plt.legend(loc="best")
-    plt.savefig(inference_plot_filepath)
+    plt.savefig(extrapolation_plot_filepath)
 
-    log("Done")
+    print("Done")
 
 
 if __name__ == "__main__":
