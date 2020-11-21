@@ -8,7 +8,8 @@ import torch
 from projectx.data import Data
 
 
-def eval() -> None:
+
+def extrapolate() -> None:
 
     # Retrieve the job_id
     parser = argparse.ArgumentParser()
@@ -21,7 +22,7 @@ def eval() -> None:
     plots_dir = root / "plots"
 
     model_filepath = models_dir / f"{args.job_id}.pt"
-    inference_plot_filepath = plots_dir / f"{args.job_id}_inference.png"
+    extrapolation_plot_filepath = plots_dir / f"{args.job_id}_extrapolation.png"
     data_path = pathlib.Path("data/-83.812_10.39.csv").resolve()
 
     # Get device
@@ -36,7 +37,7 @@ def eval() -> None:
     data = Data(
         data_path=data_path,
         device=device,
-        window_length=128,
+        window_length=200,
         batch_size=1,
     )
     # Need to send different parts of the model to the correct device
@@ -48,46 +49,51 @@ def eval() -> None:
     best_model.odefunc.data = data
     best_model.odefunc.device = device
 
-    # Evaluate
-    print("Evaluation starts")
+    # Extrapolate
+    print("Extrapolation starts")
     preds = []
     ground_truth = []
 
-    # We currently only look at the first 200 time steps
-    # Need to discuss with Jesse regarding the evaluation strategy
     with torch.no_grad():
-        for i, (time_window, weather_window, infect_window) in enumerate(
-            data.windows()
-        ):
-            if i == 200:
-                break
+        time_window, gt_weather_window, gt_infect_window = next(data.windows())
+        weather_window, infect_window = gt_weather_window[:100], gt_infect_window[:100]
 
-            infect_hat = best_model(
+        infect_hat = best_model(
                 time_window=time_window,
                 weather_window=weather_window,
                 infect_window=infect_window,
             )
 
-            # Decode the hidden states integrated through time to the infections.
+        pred_infect = infect_hat.squeeze(-1).squeeze(-1).numpy()
+        gt_infect = gt_infect_window.squeeze(-1).squeeze(-1).numpy()
 
-            # Don't normalize
-            pred = infect_hat[1][0][0]  # * data.infect_stds + data.infect_means
-            preds.append(pred)
-            gt = infect_window[1][0][0]  # * data.infect_stds + data.infect_means
-            ground_truth.append(gt)
+    #with torch.no_grad():
+    #    time_window, gt_weather_window, gt_infect_window = next(data.windows())
+    #    weather_window, infect_window = gt_weather_window[10:100], gt_infect_window[10:100]
+    #    time_window = time_window[10:]
+
+    #    infect_hat = best_model(
+    #            time_window=time_window,
+    #            weather_window=weather_window,
+    #            infect_window=infect_window,
+    #        )
+
+    #    pred_infect = infect_hat.squeeze(-1).squeeze(-1).numpy()
+    #    gt_infect = gt_infect_window[10:].squeeze(-1).squeeze(-1).numpy()
+
 
     x = np.arange(200)
     plt.figure(figsize=(20, 10))
-    plt.plot(x, preds[:200], label="prediction")
-    plt.plot(x, ground_truth[:200], label="ground_truth")
+    plt.plot(x, pred_infect, label="prediction")
+    plt.plot(x, gt_infect, label="ground_truth")
     plt.xlabel("Step")
     plt.ylabel("num_infect")
-    plt.title("Neural ODE: Prediction vs Ground Truth (first 200 timesteps)")
+    plt.title("Neural ODE: Prediction vs Ground Truth (the last 100 are extrapolation)")
     plt.legend(loc="best")
-    plt.savefig(inference_plot_filepath)
+    plt.savefig(extrapolation_plot_filepath)
 
     print("Done")
 
 
 if __name__ == "__main__":
-    eval()
+    extrapolate()
