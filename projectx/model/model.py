@@ -75,6 +75,7 @@ class Model(torch.nn.Module):
             time_window,
             rtol=self.hyperparams.rtol,
             atol=self.hyperparams.atol,
+            method="euler",
         ).to(self.device)
 
         # Decode the hidden states integrated through time to the infections.
