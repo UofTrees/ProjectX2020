@@ -22,11 +22,10 @@ class Encoder(torch.nn.Module):
             if fc_dims
             else []
         )
-        self.rnn = torch.nn.RNN(
+        self.rnn = torch.nn.LSTM(
             input_size=fc_dims[-1] if fc_dims else input_dim,
             hidden_size=hidden_dim,
             num_layers=1,
-            nonlinearity="tanh",
             bias=True,
             batch_first=False,
             dropout=0,
@@ -40,7 +39,7 @@ class Encoder(torch.nn.Module):
         `x` is arranged sequentially backwards in time
         It will now be encoded and the RNN will find a latent representation for the initial state of each window
         """
-        
+
         # Encode x
         x_original_shape = x.shape  # (window_length, batch_size, input_dim)
         x = x.view(x.shape[0] * x.shape[1], x.shape[2])
@@ -54,5 +53,5 @@ class Encoder(torch.nn.Module):
 
         # Make the RNN consume `x`, which is backwards in time
         # The returned `h` contains a latent initial state for each window
-        y, h = self.rnn(x, h)
+        y, (h, _) = self.rnn(x)
         return y, h
