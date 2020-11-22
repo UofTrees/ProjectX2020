@@ -48,6 +48,8 @@ class Data:
         self._data = pd.read_csv(data_path)
         self._data = self._parse_datetime(self._data)
 
+        self.dates = self._data.date
+
         self._weather_tensor, self._infect_tensor = self._dataframe_to_tensors(
             self._data
         )
