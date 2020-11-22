@@ -205,13 +205,16 @@ def train() -> None:
             
             # Plot predictions
             x = test_data.dates[i*EXTRAPOLATION_WINDOW_LENGTH: (i+1)*EXTRAPOLATION_WINDOW_LENGTH].to_list()
+            demarcation = x[GT_STEPS_FOR_EXTRAPOLATION]
+
             first_date, last_date = x[0].date(), x[-1].date()
             plt.figure(figsize=(20, 10))
-            plt.plot(x, pred_infect, label="prediction")
-            plt.plot(x, gt_infect, label="ground_truth")
-            plt.xlabel("Step")
-            plt.ylabel("num_infect")
-            plt.title("Neural ODE: Prediction vs Ground Truth (the last 150 are extrapolation)")
+            plt.plot(x, pred_infect, label="Prediction")
+            plt.plot(x, gt_infect, label="Ground truth")
+            plt.axvline(x=demarcation, color='gray', linewidth=4, linestyle='solid')
+            plt.xlabel("Date")
+            plt.ylabel("Number of infections")
+            plt.title("Neural ODE: Predicted vs GT number of infections (extrapolations are to the RHS of the vertical line)")
             plt.legend(loc="best")
             extrapolation_plot_filepath = plots_dir / f"{job_id}_{first_date}_{last_date}.png"
             plt.savefig(extrapolation_plot_filepath)
