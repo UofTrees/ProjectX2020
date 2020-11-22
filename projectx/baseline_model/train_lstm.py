@@ -46,7 +46,7 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
     X_test, y_test = X[int(len(X) * 0.9):], y[int(len(X) * 0.9):]
 
     mv_net = MV_LSTM(n_features, n_timesteps)
-    #criterion = torch.nn.MSELoss(reduction='sum')  # reduction='sum' created huge loss value
+    criterion = torch.nn.MSELoss(reduction='sum')  # reduction='sum' created huge loss value
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=lr)
 
     mv_net.train()
@@ -66,8 +66,8 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
                 mv_net.init_hidden(x_batch.size(0))
                 output = mv_net(x_batch)
                 #loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                infect_dist = torch.distributions.normal.Normal(output, 0.1)
-                loss = -infect_dist.log_prob(output).mean()
+                infect_dist = torch.distributions.normal.Normal(y_batch, 0.1)
+                loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
                 loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
@@ -85,8 +85,8 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
                 try:
                     output = mv_net(x_batch)
                     #batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                    infect_dist = torch.distributions.normal.Normal(output, 0.1)
-                    batch_val_loss = -infect_dist.log_prob(output).mean()
+                    infect_dist = torch.distributions.normal.Normal(y_batch, 0.1)
+                    batch_val_loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
                     val_loss += batch_val_loss.item()
                 except:
                     continue

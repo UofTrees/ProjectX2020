@@ -3,7 +3,7 @@ from lstm import MV_LSTM
 def split_sequences(seq, n_steps):
     X, y = [], []
     for i in range(len(seq) - n_steps - 1):
-        seq_x, seq_y = seq[i:(i + n_steps), :], seq[i + n_steps, 3]
+        seq_x, seq_y = seq[i:(i + n_steps), :], seq[i + n_steps+150, 3]
         X.append(seq_x)
         y.append(seq_y)
     return np.array(X), np.array(y)
@@ -38,9 +38,15 @@ def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
                 # loss_items.append(loss.item())
             except:
                 continue
-            # new_seq = test_seq.numpy().flatten()
-            # new_seq = np.append(new_seq, [pred])
-            # new_seq = new_seq[1:]
-            # test_seq = torch.as_tensor(new_seq).view(1, seq_length, 1).float()
+    updates = [i for i in range(1, len(preds) + 1)]
+    plt.figure(figsize=(20, 10))
+    plt.plot(updates[:200], preds[:200], label="Prediction")
+    plt.plot(updates[:200], labels[:200], label="Groud Truth")
+    plt.title("Prediction vs Groud Truth (first 200 timesteps)")
+    plt.xlabel("Steps")
+    plt.ylabel("num_infect")
+    plt.legend()
+    plt.savefig('./MLE Prediction for LSTM.jpg')
+    plt.show()
 if __name__ == "__main__":
     eval(pt_path = '')
