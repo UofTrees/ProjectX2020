@@ -1,5 +1,5 @@
 import torch
-from data import Data
+
 class MV_LSTM(torch.nn.Module):
     def __init__(self, n_features, seq_length):
         super(MV_LSTM, self).__init__()
@@ -12,6 +12,7 @@ class MV_LSTM(torch.nn.Module):
                                     num_layers=self.n_layers,
                                     batch_first=True)
         self.l_linear = torch.nn.Linear(self.n_hidden * self.seq_len, 1)
+        self.hidden = torch.Tensor()
 
     def init_hidden(self, batch_size):
         hidden_state = torch.zeros(self.n_layers, batch_size, self.n_hidden).cuda()

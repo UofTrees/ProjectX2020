@@ -4,7 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 import argparse
 import pandas as pd
-from Hyperparams import Hyperparameters
+from hyperparams import Hyperparameters
 # multivariate data preparation
 from lstm import MV_LSTM
 
@@ -36,7 +36,7 @@ def split_sequences(seq, n_steps):
     return np.array(X), np.array(y)
 
 def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 256, batch_size = 256, lr=0.001):
-    
+
     df = pd.read_csv(path)
     del df['date']
     sq = df.to_numpy()
@@ -48,6 +48,10 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
     mv_net = MV_LSTM(n_features, n_timesteps)
     criterion = torch.nn.MSELoss(reduction='sum')  # reduction='sum' created huge loss value
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=lr)
+
+    # use GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    mv_net.to(device)
 
     mv_net.train()
     best_loss = 10000000
@@ -108,7 +112,6 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
     plt.legend()
     plt.savefig('./MLE Curve for LSTM.jpg')
     plt.show()
+
 if __name__ == "__main__":
     train(path = './toy.csv', save_path= './lstm_state_dict.pt')
-
-
