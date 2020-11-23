@@ -72,7 +72,7 @@ def train(
     for t in range(train_episodes):
         step_loss = 0
         for b in range(0, len(X_train), batch_size):
-            if b + batch_size >= len(X_train):
+            if b + batch_size > len(X_train):
                 break
             inpt = X_train[
                 b : b + batch_size, :, :
@@ -100,7 +100,7 @@ def train(
         val_loss = 0
         with torch.no_grad():
             for b in range(0, len(X_test), batch_size):
-                if b + batch_size >= len(X_test):
+                if b + batch_size > len(X_test):
                     break
                 test_seq = X_test[b : b + batch_size, :, :]  # /np.linalg.norm(X_test)
                 label_seq = y_test[
