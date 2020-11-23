@@ -19,12 +19,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--lr", default=1e-3, type=float)
+    parser.add_argument("--dropout_rate", default=0.5, type=float)
     parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
-    parser.add_argument("--hidden_dims", default=10, type=int)
+    parser.add_argument("--hidden_dims", default=4, type=int)
     parser.add_argument("--odefunc_fc_dims", nargs="+", default=[4, 8, 8, 4], type=int)
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
-    parser.add_argument("--num_epochs", default=5, type=int)
+    parser.add_argument("--num_epochs", default=10, type=int)
     parser.add_argument("--rtol", default=1e-4, type=float)
     parser.add_argument("--atol", default=1e-6, type=float)
 
@@ -34,6 +35,7 @@ def parse_args() -> argparse.Namespace:
 def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
     return Hyperparameters(
         lr=args.lr,
+        dropout_rate=args.dropout_rate,
         input_dims=4,
         output_dims=1,
         encoder_fc_dims=args.encoder_fc_dims,
@@ -113,7 +115,6 @@ def train() -> None:
         batch_size=1,
     )
 
-
     # Set up the model
     model = Model(data=train_data, hyperparams=hyperparams, device=device)
     optimizer = torch.optim.Adam(
@@ -160,7 +161,6 @@ def train() -> None:
         all_train_avg_loss.append(train_avg_loss)
         log(f"\nEpoch {epoch:02d} training loss: {train_avg_loss:1.4f}")
 
-
         # Validate
         valid_total_loss = 0
         with torch.no_grad():
@@ -169,7 +169,10 @@ def train() -> None:
             for i, (time_window, gt_weather_window, gt_infect_window) in enumerate(
                 valid_data.windows()
             ):
-                weather_window_beginning, infect_window_beginning = gt_weather_window[:GT_STEPS_FOR_EXTRAPOLATION], gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION]
+                weather_window_beginning, infect_window_beginning = (
+                    gt_weather_window[:GT_STEPS_FOR_EXTRAPOLATION],
+                    gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION],
+                )
 
                 # Give the model the validation data so its ODEFunc can correctly fetch weather data for evaluation
                 # Then immediately give the model back the training data for the next epoch
@@ -184,7 +187,9 @@ def train() -> None:
                     valid_infect_mu.squeeze(), hyperparams.variance
                 )
 
-                valid_loss = -valid_infect_dist.log_prob(gt_infect_window.squeeze()).mean()
+                valid_loss = -valid_infect_dist.log_prob(
+                    gt_infect_window.squeeze()
+                ).mean()
                 valid_total_loss += valid_loss.item()
         valid_avg_loss = valid_total_loss / valid_data.num_windows
         all_valid_avg_loss.append(valid_avg_loss)
@@ -205,7 +210,6 @@ def train() -> None:
     plt.legend(loc="best")
     plt.savefig(loss_plot_filepath)
 
-    
     ###########################
     # Extrapolate
     ###########################
@@ -221,7 +225,7 @@ def train() -> None:
     # Use the best model and give it the test data so ODEFunc can fetch the correct weather data
     best_model = torch.load(model_filepath)
     best_model.odefunc.data = test_data
-    
+
     log("Extrapolation starts")
     num_windows = test_data.num_windows
     side_len = math.ceil(math.sqrt(num_windows))
@@ -287,7 +291,6 @@ def train() -> None:
     plt.savefig(extrapolation_plot_filepath)
 
     log("Done")
-
 
 
 if __name__ == "__main__":

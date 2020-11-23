@@ -5,6 +5,7 @@ from typing import List
 @dataclass
 class Hyperparameters:
     lr: float
+    dropout_rate: float
     input_dims: int
     output_dims: int
     encoder_fc_dims: List[int]

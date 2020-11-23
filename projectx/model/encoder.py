@@ -11,6 +11,7 @@ class Encoder(torch.nn.Module):
         input_dim: int,
         fc_dims: List[int],
         hidden_dim: int,
+        dropout_rate: float
     ) -> None:
         super(Encoder, self).__init__()
 
@@ -28,7 +29,7 @@ class Encoder(torch.nn.Module):
             num_layers=1,
             bias=True,
             batch_first=False,
-            dropout=0,
+            dropout=dropout_rate,
             bidirectional=False,
         )
 
