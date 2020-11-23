@@ -1,3 +1,4 @@
+import math
 import argparse
 import pathlib
 from typing import Optional
@@ -22,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dropout_rate", default=0.5, type=float)
     parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--hidden_dims", default=4, type=int)
-    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[4, 8, 8, 4], type=int)
+    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[32, 32], type=int)
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
     parser.add_argument("--num_epochs", default=10, type=int)

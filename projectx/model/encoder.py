@@ -29,9 +29,9 @@ class Encoder(torch.nn.Module):
             num_layers=1,
             bias=True,
             batch_first=False,
-            dropout=dropout_rate,
             bidirectional=False,
         )
+        self.dropout = torch.nn.Dropout(p=dropout_rate)
 
     def forward(
         self, x: torch.Tensor, h: torch.Tensor
@@ -51,6 +51,8 @@ class Encoder(torch.nn.Module):
         x = x.view(
             x_original_shape[0], x_original_shape[1], x.shape[1]
         )  # (window_length, batch_size, fc_dims[-1])
+
+        x = self.dropout(x)
 
         # Make the RNN consume `x`, which is backwards in time
         # The returned `h` contains a latent initial state for each window
