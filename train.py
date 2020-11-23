@@ -11,6 +11,8 @@ from projectx.hyperparams import Hyperparameters
 from projectx.model import Model
 
 # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+EXTRAPOLATION_WINDOW_LENGTH = 250
+GT_STEPS_FOR_EXTRAPOLATION = 100
 
 
 def parse_args() -> argparse.Namespace:
@@ -168,20 +170,18 @@ def train() -> None:
 
 
     # Extrapolate
-    log("Extrapolation starts")
-    test_data_path = pathlib.Path("data/-83.812_10.39_test.csv").resolve()
     best_model = torch.load(model_filepath)
-    EXTRAPOLATION_WINDOW_LENGTH = 250
-    GT_STEPS_FOR_EXTRAPOLATION = 100
 
-    # Get data with another window length
+    # Get data with the window length for extrapolation
+    test_data_path = pathlib.Path("data/-83.812_10.39_test.csv").resolve()
     test_data = Data(
         data_path=test_data_path,
         device=device,
         window_length=EXTRAPOLATION_WINDOW_LENGTH,
         batch_size=1,
     )
-
+    
+    log("Extrapolation starts")
     with torch.no_grad():
         # For every window, use the first 100 to produce the initial latent state
         # Then predict num_infect for those 100, as well as for 150 time steps in the future

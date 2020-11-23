@@ -8,12 +8,15 @@ import torch
 from projectx.data import Data
 
 
+EXTRAPOLATION_WINDOW_LENGTH = 250
+GT_STEPS_FOR_EXTRAPOLATION = 100
+
 
 def extrapolate() -> None:
 
     # Retrieve the job_id
     parser = argparse.ArgumentParser()
-    parser.add_argument("--job_id", default="lr1.0e-03_enc[8, 16, 8]_hidden10_ode[16, 32, 32, 16]_dec[8, 16, 8]_window128_epochs256_rtol0.0001_atol1e-06", type=str)
+    parser.add_argument("--job_id", default="lr1.0e-03_enc[8, 16, 8]_hidden10_ode[4, 8, 8, 4]_dec[8, 16, 8]_window128_epochs32_rtol0.0001_atol1e-06", type=str)
     args = parser.parse_args()
 
     # Get all folders and files
@@ -23,7 +26,6 @@ def extrapolate() -> None:
 
     model_filepath = models_dir / f"{args.job_id}.pt"
     extrapolation_plot_filepath = plots_dir / f"{args.job_id}_extrapolation.png"
-    data_path = pathlib.Path("data/-83.812_10.39.csv").resolve()
 
     # Get device
     if torch.cuda.is_available():
@@ -33,20 +35,31 @@ def extrapolate() -> None:
         device = torch.device("cpu")
         print("Running on CPU")
 
-    # Get the data and model
-    data = Data(
-        data_path=data_path,
+
+    # Get the data
+    train_data_path = pathlib.Path("data/-83.812_10.39_train.csv").resolve()
+    test_data_path = pathlib.Path("data/-83.812_10.39_test.csv").resolve()
+    train_data = Data(
+        data_path=train_data_path,
         device=device,
-        window_length=250,
+        window_length=EXTRAPOLATION_WINDOW_LENGTH,
         batch_size=1,
     )
+    test_data = Data(
+        data_path=test_data_path,
+        device=device,
+        window_length=EXTRAPOLATION_WINDOW_LENGTH,
+        batch_size=1,
+    )
+
+    # Load the model
     # Need to send different parts of the model to the correct device
     best_model = torch.load(model_filepath, map_location=device)
     best_model.device = device
     best_model.encoder = best_model.encoder.to(device)
     best_model.decoder = best_model.decoder.to(device)
     best_model.odefunc = best_model.odefunc.to(device)
-    best_model.odefunc.data = data
+    best_model.odefunc.data = test_data
     best_model.odefunc.device = device
 
     # Extrapolate
@@ -55,45 +68,41 @@ def extrapolate() -> None:
     print("Extrapolation starts")
 
     with torch.no_grad():
-        time_window, gt_weather_window, gt_infect_window = next(data.windows())
-        weather_window, infect_window = gt_weather_window[:100], gt_infect_window[:100]
+        # For every window, use the first 100 to produce the initial latent state
+        # Then predict num_infect for those 100, as well as for 150 time steps in the future
+        for i, (time_window, gt_weather_window, gt_infect_window) in enumerate(
+            test_data.windows()
+        ):
+            weather_window, infect_window = gt_weather_window[:GT_STEPS_FOR_EXTRAPOLATION], gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION]
 
-        infect_hat = best_model(
+            infect_hat = best_model(
                 time_window=time_window,
                 weather_window=weather_window,
                 infect_window=infect_window,
             )
 
-        pred_infect = infect_hat * data.infect_stds + data.infect_means
-        gt_infect = gt_infect_window * data.infect_stds + data.infect_means
+            # Denormalize using means and stds from TRAINING data
+            pred_infect = infect_hat * train_data.infect_stds + train_data.infect_means
+            gt_infect = gt_infect_window * train_data.infect_stds + train_data.infect_means
 
-        pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
-        gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
+            pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
+            gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
+            
+            # Plot predictions
+            x = test_data.dates[i*EXTRAPOLATION_WINDOW_LENGTH: (i+1)*EXTRAPOLATION_WINDOW_LENGTH].to_list()
+            demarcation = x[GT_STEPS_FOR_EXTRAPOLATION]
 
-    #with torch.no_grad():
-    #    time_window, gt_weather_window, gt_infect_window = next(data.windows())
-    #    weather_window, infect_window = gt_weather_window[10:100], gt_infect_window[10:100]
-    #    time_window = time_window[10:]
-
-    #    infect_hat = best_model(
-    #            time_window=time_window,
-    #            weather_window=weather_window,
-    #            infect_window=infect_window,
-    #        )
-
-    #    pred_infect = infect_hat.squeeze(-1).squeeze(-1).numpy()
-    #    gt_infect = gt_infect_window[10:].squeeze(-1).squeeze(-1).numpy()
-
-
-    x = np.arange(250)
-    plt.figure(figsize=(20, 10))
-    plt.plot(x, pred_infect, label="prediction")
-    plt.plot(x, gt_infect, label="ground_truth")
-    plt.xlabel("Step")
-    plt.ylabel("num_infect")
-    plt.title("Neural ODE: Prediction vs Ground Truth (the last 100 are extrapolation)")
-    plt.legend(loc="best")
-    plt.savefig(extrapolation_plot_filepath)
+            first_date, last_date = x[0].date(), x[-1].date()
+            plt.figure(figsize=(20, 10))
+            plt.plot(x, pred_infect, label="Prediction")
+            plt.plot(x, gt_infect, label="Ground truth")
+            plt.axvline(x=demarcation, color='gray', linewidth=4, linestyle='solid')
+            plt.xlabel("Date")
+            plt.ylabel("Number of infections")
+            plt.title("Neural ODE: Predicted vs GT number of infections (extrapolations are to the RHS of the vertical line)")
+            plt.legend(loc="best")
+            extrapolation_plot_filepath = plots_dir / f"{args.job_id}_{first_date}_{last_date}.png"
+            plt.savefig(extrapolation_plot_filepath)
 
     print("Done")
 
