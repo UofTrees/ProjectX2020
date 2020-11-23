@@ -87,6 +87,7 @@ def train(
                 y_batch = torch.from_numpy(
                     target
                 ).float()  # torch.tensor(target,dtype=torch.float32)
+                mv_net.init_hidden(x_batch.size(0))
                 output = mv_net(x_batch)
                 # loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
                 infect_dist = torch.distributions.normal.Normal(y_batch, 0.1)
@@ -108,6 +109,7 @@ def train(
                 ]  # /np.linalg.norm(y_test[b:b+batch_size])
                 x_batch = torch.from_numpy(test_seq).float().to(device)
                 y_batch = torch.from_numpy(label_seq).float()
+                mv_net.init_hidden(x_batch.size(0))
                 try:
                     output = mv_net(x_batch)
                     # batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
