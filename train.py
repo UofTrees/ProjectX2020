@@ -261,8 +261,8 @@ def train() -> None:
                 gt_infect_window * train_data.infect_stds + train_data.infect_means
             )
 
-            pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
-            gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
+            pred_infect = pred_infect.squeeze(-1).squeeze(-1).cpu().numpy()
+            gt_infect = gt_infect.squeeze(-1).squeeze(-1).cpu().numpy()
 
             # Plot predictions
             dates = test_data.dates[
