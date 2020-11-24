@@ -1,3 +1,4 @@
+import math
 import argparse
 import pathlib
 
@@ -16,7 +17,11 @@ def extrapolate() -> None:
 
     # Retrieve the job_id
     parser = argparse.ArgumentParser()
-    parser.add_argument("--job_id", default="lr1.0e-03_enc[8, 16, 8]_hidden10_ode[4, 8, 8, 4]_dec[8, 16, 8]_window128_epochs32_rtol0.0001_atol1e-06", type=str)
+    parser.add_argument(
+        "--job_id",
+        default="lr1.0e-03_enc[8, 16, 8]_hidden32_ode[32, 64, 32]_dec[8, 16, 8]_window128_epochs256_rtol0.0001_atol1e-06",
+        type=str,
+    )
     args = parser.parse_args()
 
     # Get all folders and files
@@ -25,7 +30,6 @@ def extrapolate() -> None:
     plots_dir = root / "plots"
 
     model_filepath = models_dir / f"{args.job_id}.pt"
-    extrapolation_plot_filepath = plots_dir / f"{args.job_id}_extrapolation.png"
 
     # Get device
     if torch.cuda.is_available():
@@ -34,7 +38,6 @@ def extrapolate() -> None:
     else:
         device = torch.device("cpu")
         print("Running on CPU")
-
 
     # Get the data
     train_data_path = pathlib.Path("data/-83.812_10.39_train.csv").resolve()
@@ -66,6 +69,14 @@ def extrapolate() -> None:
     # We'll give the first 100 time steps for it to produce z_t0
     # We'll then ask it to predict those first 100 and extrapolate the next 150
     print("Extrapolation starts")
+    num_windows = test_data.num_windows
+    side_len = math.ceil(math.sqrt(num_windows))
+    fig, axes = plt.subplots(side_len, side_len, figsize=(100, 35), sharey=True)
+    plt.tight_layout()
+    plt.suptitle(
+        "Neural ODE: Predicted vs GT number of infections (extrapolations are to the RHS of the vertical line)",
+        fontsize=40,
+    )
 
     with torch.no_grad():
         # For every window, use the first 100 to produce the initial latent state
@@ -73,7 +84,10 @@ def extrapolate() -> None:
         for i, (time_window, gt_weather_window, gt_infect_window) in enumerate(
             test_data.windows()
         ):
-            weather_window, infect_window = gt_weather_window[:GT_STEPS_FOR_EXTRAPOLATION], gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION]
+            weather_window, infect_window = (
+                gt_weather_window[:GT_STEPS_FOR_EXTRAPOLATION],
+                gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION],
+            )
 
             infect_hat = best_model(
                 time_window=time_window,
@@ -83,29 +97,42 @@ def extrapolate() -> None:
 
             # Denormalize using means and stds from TRAINING data
             pred_infect = infect_hat * train_data.infect_stds + train_data.infect_means
-            gt_infect = gt_infect_window * train_data.infect_stds + train_data.infect_means
+            gt_infect = (
+                gt_infect_window * train_data.infect_stds + train_data.infect_means
+            )
 
             pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
             gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
-            
-            # Plot predictions
-            x = test_data.dates[i*EXTRAPOLATION_WINDOW_LENGTH: (i+1)*EXTRAPOLATION_WINDOW_LENGTH].to_list()
-            demarcation = x[GT_STEPS_FOR_EXTRAPOLATION]
 
-            first_date, last_date = x[0].date(), x[-1].date()
-            plt.figure(figsize=(20, 10))
-            plt.plot(x, pred_infect, label="Prediction")
-            plt.plot(x, gt_infect, label="Ground truth")
-            plt.axvline(x=demarcation, color='gray', linewidth=4, linestyle='solid')
-            plt.xlabel("Date")
-            plt.ylabel("Number of infections")
-            plt.title("Neural ODE: Predicted vs GT number of infections (extrapolations are to the RHS of the vertical line)")
-            plt.legend(loc="best")
-            extrapolation_plot_filepath = plots_dir / f"{args.job_id}_{first_date}_{last_date}.png"
-            plt.savefig(extrapolation_plot_filepath)
+            # Plot predictions
+            dates = test_data.dates[
+                i * EXTRAPOLATION_WINDOW_LENGTH : (i + 1) * EXTRAPOLATION_WINDOW_LENGTH
+            ].to_list()
+            demarcation = dates[GT_STEPS_FOR_EXTRAPOLATION]
+
+            row_idx = i // side_len
+            col_idx = i % side_len
+            axes[row_idx, col_idx].plot(dates, pred_infect, label="Prediction")
+            axes[row_idx, col_idx].plot(dates, gt_infect, label="Ground truth")
+            axes[row_idx, col_idx].axvline(
+                x=demarcation, color="gray", linewidth=2, linestyle="solid"
+            )
+            axes[row_idx, col_idx].set_xlabel("Date")
+            axes[row_idx, col_idx].set_ylabel("num_infect")
+
+    for j in range(num_windows + 1, side_len ** 2):
+        row_idx = j // side_len
+        col_idx = j % side_len
+        fig.delaxes(axes[row_idx][col_idx])
+
+    row_idx_final = (num_windows - 1) // side_len
+    col_idx_final = (num_windows - 1) % side_len
+    lines, labels = axes[row_idx_final, col_idx_final].get_legend_handles_labels()
+    fig.legend(lines, labels, fontsize=40, loc="upper left")
+    extrapolation_plot_filepath = plots_dir / f"{args.job_id}.png"
+    plt.savefig(extrapolation_plot_filepath)
 
     print("Done")
-
 
 
 if __name__ == "__main__":

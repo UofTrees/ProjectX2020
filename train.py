@@ -1,4 +1,5 @@
 import argparse
+import math
 import pathlib
 from typing import Optional
 
@@ -11,20 +12,21 @@ from projectx.hyperparams import Hyperparameters
 from projectx.model import Model
 
 # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+EXTRAPOLATION_WINDOW_LENGTH = 250
+GT_STEPS_FOR_EXTRAPOLATION = 100
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--lr", default=1e-3, type=float)
+    parser.add_argument("--dropout_rate", default=0.5, type=float)
     parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
-    parser.add_argument("--hidden_dims", default=10, type=int)
-    parser.add_argument(
-        "--odefunc_fc_dims", nargs="+", default=[16, 32, 32, 16], type=int
-    )
+    parser.add_argument("--hidden_dims", default=4, type=int)
+    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[32, 32], type=int)
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
-    parser.add_argument("--num_epochs", default=32, type=int)
+    parser.add_argument("--num_epochs", default=10, type=int)
     parser.add_argument("--rtol", default=1e-4, type=float)
     parser.add_argument("--atol", default=1e-6, type=float)
 
@@ -34,6 +36,7 @@ def parse_args() -> argparse.Namespace:
 def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
     return Hyperparameters(
         lr=args.lr,
+        dropout_rate=args.dropout_rate,
         input_dims=4,
         output_dims=1,
         encoder_fc_dims=args.encoder_fc_dims,
@@ -83,7 +86,6 @@ def train() -> None:
 
     job_filepath = logs_dir / f"{job_id}.txt"
     model_filepath = models_dir / f"{job_id}.pt"
-    extrapolation_plot_filepath = plots_dir / f"{job_id}_extrapolation.png"
     loss_plot_filepath = plots_dir / f"{job_id}_loss.png"
 
     def log(msg: str):
@@ -98,35 +100,42 @@ def train() -> None:
         device = torch.device("cpu")
         log("Running on CPU")
 
-    # Get the data and model
-    data_path = pathlib.Path("data/-83.812_10.39.csv").resolve()
-
-    data = Data(
-        data_path=data_path,
+    # Get the training and validation data
+    train_data_path = pathlib.Path("data/-83.812_10.39_train.csv").resolve()
+    train_data = Data(
+        data_path=train_data_path,
         device=device,
         window_length=hyperparams.window_length,
         batch_size=1,
         shuffle_windows=True,
     )
+    valid_data_path = pathlib.Path("data/-83.812_10.39_valid.csv").resolve()
+    valid_data = Data(
+        data_path=valid_data_path,
+        device=device,
+        window_length=EXTRAPOLATION_WINDOW_LENGTH,
+        batch_size=1,
+    )
 
-    model = Model(data=data, hyperparams=hyperparams, device=device)
-
-    # criterion = torch.nn.MSELoss()
+    # Set up the model
+    model = Model(data=train_data, hyperparams=hyperparams, device=device)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=hyperparams.lr,
     )
 
+    ###########################
     # Train
+    ###########################
     log("Training starts")
 
-    all_avg_loss = []
-    num_windows = data.num_windows
-    lowest_avg_loss: Optional[float] = None
+    all_train_avg_loss, all_valid_avg_loss = [], []
+    lowest_valid_avg_loss: Optional[float] = None
+
     for epoch in range(hyperparams.num_epochs):
-        loss_total = 0.0
+        train_total_loss = 0.0
         for i, (time_window, weather_window, infect_window) in enumerate(
-            data.windows()
+            train_data.windows()
         ):
             optimizer.zero_grad()
 
@@ -139,77 +148,151 @@ def train() -> None:
                 infect_mu.squeeze(), hyperparams.variance
             )
 
-            # loss = criterion(infect_hat.squeeze(), infect_window.squeeze())
-            loss = -infect_dist.log_prob(infect_window.squeeze()).mean()
+            train_loss = -infect_dist.log_prob(infect_window.squeeze()).mean()
 
             print(
-                f"{epoch:02d} ({i:03d}/{num_windows:03d}): {loss.item():>2.4f}",
+                f"{epoch:02d} ({i:03d}/{train_data.num_windows:03d}): {train_loss.item():>2.4f}",
                 end="\r",
             )
-            loss_total += loss.item()
+            train_total_loss += train_loss.item()
 
-            loss.backward()
+            train_loss.backward()
             optimizer.step()
 
-        avg_loss = loss_total / data.num_windows
-        all_avg_loss.append(avg_loss)
-        log(f"\nEpoch {epoch:02d}: {avg_loss:1.4f}")
+        train_avg_loss = train_total_loss / train_data.num_windows
+        all_train_avg_loss.append(train_avg_loss)
+        log(f"\nEpoch {epoch:02d} training loss: {train_avg_loss:1.4f}")
 
-        if lowest_avg_loss is None or avg_loss < lowest_avg_loss:
-            lowest_avg_loss = avg_loss
+        # Validate
+        valid_total_loss = 0
+        with torch.no_grad():
+            # For every window, use the first 100 to produce the initial latent state
+            # Then predict num_infect for those 100, as well as for 150 time steps in the future
+            for i, (time_window, gt_weather_window, gt_infect_window) in enumerate(
+                valid_data.windows()
+            ):
+                weather_window_beginning, infect_window_beginning = (
+                    gt_weather_window[:GT_STEPS_FOR_EXTRAPOLATION],
+                    gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION],
+                )
+
+                # Give the model the validation data so its ODEFunc can correctly fetch weather data for evaluation
+                # Then immediately give the model back the training data for the next epoch
+                model.odefunc.data = valid_data
+                valid_infect_mu = model(
+                    time_window=time_window,
+                    weather_window=weather_window_beginning,
+                    infect_window=infect_window_beginning,
+                )
+                model.odefunc.data = train_data
+                valid_infect_dist = torch.distributions.normal.Normal(
+                    valid_infect_mu.squeeze(), hyperparams.variance
+                )
+
+                valid_loss = -valid_infect_dist.log_prob(
+                    gt_infect_window.squeeze()
+                ).mean()
+                valid_total_loss += valid_loss.item()
+        valid_avg_loss = valid_total_loss / valid_data.num_windows
+        all_valid_avg_loss.append(valid_avg_loss)
+        log(f"Epoch {epoch:02d} validation loss: {valid_avg_loss:1.4f}")
+
+        if lowest_valid_avg_loss is None or valid_avg_loss < lowest_valid_avg_loss:
+            lowest_valid_avg_loss = valid_avg_loss
             log(f"Saving model at epoch {epoch:02d}\n")
             torch.save(model, model_filepath)
 
-    x = np.arange(hyperparams.num_epochs)
+    epochs = np.arange(hyperparams.num_epochs)
     plt.figure()
-    plt.plot(x, all_avg_loss, label="loss")
+    plt.plot(epochs, all_train_avg_loss, label="Training loss")
+    plt.plot(epochs, all_valid_avg_loss, label="Validation loss")
     plt.xlabel("Step")
     plt.ylabel("Loss")
     plt.title("Neural ODE: loss curve")
     plt.legend(loc="best")
     plt.savefig(loss_plot_filepath)
 
+    ###########################
     # Extrapolate
-    # We'll give the first 100 time steps for it to produce z_t0
-    # We'll then ask it to predict those first 100 and extrapolate the next 150
-    print("Extrapolation starts")
-    best_model = torch.load(model_filepath)
+    ###########################
 
-    # Get data with another window length
-    data = Data(
-        data_path=data_path,
+    # Get data with the window length for extrapolation
+    test_data_path = pathlib.Path("data/-83.812_10.39_test.csv").resolve()
+    test_data = Data(
+        data_path=test_data_path,
         device=device,
-        window_length=250,
+        window_length=EXTRAPOLATION_WINDOW_LENGTH,
         batch_size=1,
+    )
+    # Use the best model and give it the test data so ODEFunc can fetch the correct weather data
+    best_model = torch.load(model_filepath)
+    best_model.odefunc.data = test_data
+
+    log("Extrapolation starts")
+    num_windows = test_data.num_windows
+    side_len = math.ceil(math.sqrt(num_windows))
+    fig, axes = plt.subplots(side_len, side_len, figsize=(100, 35), sharey=True)
+    plt.tight_layout()
+    plt.suptitle(
+        "Neural ODE: Predicted vs GT number of infections (extrapolations are to the RHS of the vertical line)",
+        fontsize=40,
     )
 
     with torch.no_grad():
-        time_window, gt_weather_window, gt_infect_window = next(data.windows())
-        weather_window, infect_window = gt_weather_window[:100], gt_infect_window[:100]
+        # For every window, use the first 100 to produce the initial latent state
+        # Then predict num_infect for those 100, as well as for 150 time steps in the future
+        for i, (time_window, gt_weather_window, gt_infect_window) in enumerate(
+            test_data.windows()
+        ):
+            weather_window, infect_window = (
+                gt_weather_window[:GT_STEPS_FOR_EXTRAPOLATION],
+                gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION],
+            )
 
-        infect_hat = best_model(
-            time_window=time_window,
-            weather_window=weather_window,
-            infect_window=infect_window,
-        )
+            infect_hat = best_model(
+                time_window=time_window,
+                weather_window=weather_window,
+                infect_window=infect_window,
+            )
 
-        pred_infect = infect_hat * data.infect_stds + data.infect_means
-        gt_infect = gt_infect_window * data.infect_stds + data.infect_means
+            # Denormalize using means and stds from TRAINING data
+            pred_infect = infect_hat * train_data.infect_stds + train_data.infect_means
+            gt_infect = (
+                gt_infect_window * train_data.infect_stds + train_data.infect_means
+            )
 
-        pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
-        gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
+            pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
+            gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
 
-    x = np.arange(250)
-    plt.figure(figsize=(20, 10))
-    plt.plot(x, pred_infect, label="prediction")
-    plt.plot(x, gt_infect, label="ground_truth")
-    plt.xlabel("Step")
-    plt.ylabel("num_infect")
-    plt.title("Neural ODE: Prediction vs Ground Truth (the last 100 are extrapolation)")
-    plt.legend(loc="best")
+            # Plot predictions
+            dates = test_data.dates[
+                i * EXTRAPOLATION_WINDOW_LENGTH : (i + 1) * EXTRAPOLATION_WINDOW_LENGTH
+            ].to_list()
+            demarcation = dates[GT_STEPS_FOR_EXTRAPOLATION]
+
+            row_idx = i // side_len
+            col_idx = i % side_len
+            axes[row_idx, col_idx].plot(dates, pred_infect, label="Prediction")
+            axes[row_idx, col_idx].plot(dates, gt_infect, label="Ground truth")
+            axes[row_idx, col_idx].axvline(
+                x=demarcation, color="gray", linewidth=2, linestyle="solid"
+            )
+            axes[row_idx, col_idx].set_xlabel("Date")
+            axes[row_idx, col_idx].set_ylabel("num_infect")
+
+    for j in range(num_windows + 1, side_len ** 2):
+        row_idx = j // side_len
+        col_idx = j % side_len
+        fig.delaxes(axes[row_idx][col_idx])
+
+    row_idx_final = (num_windows - 1) // side_len
+    col_idx_final = (num_windows - 1) % side_len
+    lines, labels = axes[row_idx_final, col_idx_final].get_legend_handles_labels()
+    fig.legend(lines, labels, fontsize=40, loc="upper left")
+    extrapolation_plot_filepath = plots_dir / f"{args.job_id}.png"
     plt.savefig(extrapolation_plot_filepath)
 
-    print("Done")
+    log("Done")
 
 
 if __name__ == "__main__":

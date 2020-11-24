@@ -29,6 +29,7 @@ class Model(torch.nn.Module):
             input_dim=self.hyperparams.input_dims,
             fc_dims=self.hyperparams.encoder_fc_dims,
             hidden_dim=self.hyperparams.hidden_dims,
+            dropout_rate=self.hyperparams.dropout_rate,
         ).to(self.device)
         self.odefunc = ODEFunc(
             data=data,
@@ -75,6 +76,7 @@ class Model(torch.nn.Module):
             time_window,
             rtol=self.hyperparams.rtol,
             atol=self.hyperparams.atol,
+            method="euler",
         ).to(self.device)
 
         # Decode the hidden states integrated through time to the infections.
