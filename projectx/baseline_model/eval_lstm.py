@@ -25,35 +25,45 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
     mv_net.load_state_dict(torch.load(pt_path))
     X_trapolate = X[100:250]
     test_seq = X[0:1]
-    pred = []
-    label = []
-    with torch.no_grad():
-        for i in range(150):
-            x_batch = torch.from_numpy(test_seq).float().cuda()
-            mv_net.init_hidden(x_batch.size(0))
-            output = mv_net(x_batch)
-            t = output.cpu().view(-1).numpy()[0]
-            # Produce output of the extrapolation
-            pred.append(t)
-            label.append(X_trapolate[i][0][3])
-            # Update test seq
-            np_to_add = X_trapolate[i][0]
-            np_to_add[-1] = t
-            arr = test_seq.tolist()
-            del arr[0][0]
-            arr[0].append(np_to_add)
-            test_seq = np.array(arr)
+    preds = []
+    labels = []
+    for j in range(0, len(X_test), 250):
+        X_trapolate = X_test[j+100:j+250]
+        test_seq = X_test[j:j+1]
+        pred = []
+        label = []
+        with torch.no_grad():
+            for i in range(150):
+                x_batch = torch.from_numpy(test_seq).float().cuda()
+                mv_net.init_hidden(x_batch.size(0))
+                output = mv_net(x_batch)
+                t = output.cpu().view(-1).numpy()[0]
+                # Produce output of the extrapolation
+                pred.append(t)
+                label.append(X_trapolate[i][0][3])
+                # Update test seq
+                np_to_add = X_trapolate[i][0]
+                np_to_add[-1] = t
+                arr = test_seq.tolist()
+                del arr[0][0]
+                arr[0].append(np_to_add)
+                test_seq = np.array(arr)
+        preds.append(pred)
+        labels.append(label)
     # Visualize preds vs labels
-    updates = [i for i in range(1, 151)]
-    plt.figure(figsize=(20, 10))
-    plt.plot(updates, pred, label="Prediction")
-    plt.plot(updates, label, label="Groud Truth")
-    plt.title("Prediction vs Groud Truth (MLE extrapolated)")
-    plt.xlabel("Steps")
-    plt.ylabel("num_infect")
-    plt.legend()
-    plt.savefig('./MLE Extrapolation for LSTM.jpg')
-    plt.show()
+    for j in range(1,21):
+        pred = preds[j]
+        label = labels[j]
+        updates = [i for i in range(1, 151)]
+        plt.figure(figsize=(20, 10))
+        plt.plot(updates, pred, label="Prediction")
+        plt.plot(updates, label, label="Groud Truth")
+        plt.title("Prediction vs Groud Truth (MLE extrapolated)")
+        plt.xlabel("Steps")
+        plt.ylabel("num_infect")
+        plt.legend()
+        plt.show()
+        plt.savefig('./MLE Extrapolation for LSTM for '{}' window.jpg'.format(j))
 
 def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     # use GPU
