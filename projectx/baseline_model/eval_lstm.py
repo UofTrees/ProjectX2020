@@ -2,6 +2,7 @@ from lstm import MV_LSTM
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 def split_sequences(seq, n_steps):
     X, y = [], []
     for i in range(len(seq) - n_steps - 1):
@@ -11,6 +12,10 @@ def split_sequences(seq, n_steps):
     return np.array(X), np.array(y)
 
 def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1):
+    # use GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    mv_net.to(device)
+
     df = pd.read_csv(path)
     del df['date']
     sq = df.to_numpy()
@@ -23,9 +28,9 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
     pred = []
     label = []
     with torch.no_grad():
-        mv_net.init_hidden(x_batch.size(0))
         for i in range(150):
             x_batch = torch.from_numpy(test_seq).float().cuda()
+            mv_net.init_hidden(x_batch.size(0))
             output = mv_net(x_batch)
             t = output.cpu().view(-1).numpy()[0]
             # Produce output of the extrapolation
@@ -51,6 +56,10 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
     plt.show()
 
 def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
+    # use GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    mv_net.to(device)
+
     # Predict on test set
     df = pd.read_csv(path)
     del df['date']
@@ -91,4 +100,4 @@ def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     plt.savefig('./MLE Prediction for LSTM.jpg')
     plt.show()
 if __name__ == "__main__":
-    eval(pt_path = '')
+    eval(pt_path = '', path = '')

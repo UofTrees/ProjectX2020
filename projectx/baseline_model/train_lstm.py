@@ -41,7 +41,8 @@ def split_sequences(seq, n_steps):
 
 
 def train(
-    path,
+    path_train,
+    path_valid,
     save_path,
     n_features=4,
     n_timesteps=100,
@@ -50,13 +51,15 @@ def train(
     lr=0.001,
 ):
 
-    df = pd.read_csv(path)
+    df = pd.read_csv(path_train)
     del df["date"]
     sq = df.to_numpy()
-    X, y = split_sequences(sq, n_steps=n_timesteps)
+    X_train, y_train = split_sequences(sq, n_steps=n_timesteps)
 
-    X_train, y_train = X[: int(len(X) * 0.9)], y[: int(len(X) * 0.9)]
-    X_test, y_test = X[int(len(X) * 0.9) :], y[int(len(X) * 0.9) :]
+    df = pd.read_csv(path_valid)
+    del df["date"]
+    sq = df.to_numpy()
+    X_valid, y_valid = split_sequences(sq, n_steps=n_timesteps)
 
     mv_net = MV_LSTM(n_features, n_timesteps)
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=lr)
@@ -100,11 +103,11 @@ def train(
         # validation
         val_loss = 0
         with torch.no_grad():
-            for b in range(0, len(X_test), batch_size):
-                if b + batch_size > len(X_test):
+            for b in range(0, len(X_valid), batch_size):
+                if b + batch_size > len(X_valid):
                     break
-                test_seq = X_test[b : b + batch_size, :, :]  # /np.linalg.norm(X_test)
-                label_seq = y_test[
+                test_seq = X_valid[b : b + batch_size, :, :]  # /np.linalg.norm(X_test)
+                label_seq = y_valid[
                     b : b + batch_size
                 ]  # /np.linalg.norm(y_test[b:b+batch_size])
                 x_batch = torch.from_numpy(test_seq).float().to(device)
@@ -121,7 +124,7 @@ def train(
                 except:
                     continue
         num_batches_train = len(X_train) // batch_size
-        num_batches_test = len(X_test) // batch_size
+        num_batches_test = len(X_valid) // batch_size
         train_loss = step_loss / num_batches_train
         valid_loss = val_loss / num_batches_test
         loss_plot.append(train_loss)
@@ -145,4 +148,4 @@ def train(
 
 
 if __name__ == "__main__":
-    train(path="./toy.csv", save_path="./lstm_state_dict.pt")
+    train(path_train="./toy.csv", path_valid ='', save_path="./lstm_state_dict.pt")
