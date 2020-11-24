@@ -1,5 +1,5 @@
-import math
 import argparse
+import math
 import pathlib
 from typing import Optional
 
@@ -107,6 +107,7 @@ def train() -> None:
         device=device,
         window_length=hyperparams.window_length,
         batch_size=1,
+        shuffle_windows=True,
     )
     valid_data_path = pathlib.Path("data/-83.812_10.39_valid.csv").resolve()
     valid_data = Data(
