@@ -2,6 +2,7 @@ import datetime
 import pathlib
 from typing import ClassVar, Generator, Tuple
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -13,6 +14,7 @@ class Data:
     _device: torch.device
     _window_length: int
     _batch_size: int
+    _shuffle_windows: bool
 
     _data: pd.DataFrame
 
@@ -37,6 +39,7 @@ class Data:
         device: torch.device,
         window_length: int,
         batch_size: int,
+        shuffle_windows: bool = False,
     ) -> None:
         if not data_path.exists():
             raise ValueError(f"no such path {data_path}")
@@ -44,6 +47,7 @@ class Data:
         self._device = device
         self._window_length = window_length
         self._batch_size = batch_size
+        self._shuffle_windows = shuffle_windows
 
         self._data = pd.read_csv(data_path)
         self._data = self._parse_datetime(self._data)
@@ -169,9 +173,8 @@ class Data:
         data = (data - means) / stds
         return data, means, stds
 
-    @staticmethod
     def _data_windows(
-        data: torch.Tensor, *, window_length: int, batch_size: int
+        self, data: torch.Tensor, *, window_length: int, batch_size: int
     ) -> Generator[torch.Tensor, None, None]:
         """
         Send one batch of `batch_size` windows.
@@ -181,12 +184,23 @@ class Data:
         """
 
         data_windows = []
-        for i in range(0, data.shape[0] - window_length, window_length):
-            window_slice = slice(i, i + window_length)
-            data_windows.append(data[window_slice])
-            if (i + 1) % batch_size == 0 or i == data.shape[0] - window_length:
-                yield torch.stack(data_windows, dim=1)
-                data_windows = []
+
+        if self._shuffle_windows:
+            idx = np.arange(data.shape[0] // window_length)
+            np.random.shuffle(idx)
+            for i in range(0, data.shape[0] // window_length):
+                window_slice = slice(idx[i], idx[i] + window_length)
+                data_windows.append(data[window_slice])
+                if (i + 1) % batch_size == 0 or i == data.shape[0] // window_length:
+                    yield torch.stack(data_windows, dim=1)
+                    data_windows = []
+        else:
+            for i in range(0, data.shape[0] - window_length, window_length):
+                window_slice = slice(i, i + window_length)
+                data_windows.append(data[window_slice])
+                if (i + 1) % batch_size == 0 or i == data.shape[0] - window_length:
+                    yield torch.stack(data_windows, dim=1)
+                    data_windows = []
 
     # Give normalized weather data but unnormalized num_infect
     def _weather_windows(self) -> Generator[torch.Tensor, None, None]:
@@ -200,7 +214,7 @@ class Data:
     def _infect_windows(self) -> Generator[torch.Tensor, None, None]:
         yield from self._data_windows(
             self._normalized_infect_tensor,
-            #self._infect_tensor,
+            # self._infect_tensor,
             window_length=self._window_length,
             batch_size=self._batch_size,
         )

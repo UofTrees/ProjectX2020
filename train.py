@@ -19,7 +19,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", default=1e-3, type=float)
     parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--hidden_dims", default=10, type=int)
-    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[16, 32, 32, 16], type=int)
+    parser.add_argument(
+        "--odefunc_fc_dims", nargs="+", default=[16, 32, 32, 16], type=int
+    )
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
     parser.add_argument("--num_epochs", default=32, type=int)
@@ -104,6 +106,7 @@ def train() -> None:
         device=device,
         window_length=hyperparams.window_length,
         batch_size=1,
+        shuffle_windows=True,
     )
 
     model = Model(data=data, hyperparams=hyperparams, device=device)
@@ -185,17 +188,16 @@ def train() -> None:
         weather_window, infect_window = gt_weather_window[:100], gt_infect_window[:100]
 
         infect_hat = best_model(
-                time_window=time_window,
-                weather_window=weather_window,
-                infect_window=infect_window,
-            )
+            time_window=time_window,
+            weather_window=weather_window,
+            infect_window=infect_window,
+        )
 
         pred_infect = infect_hat * data.infect_stds + data.infect_means
         gt_infect = gt_infect_window * data.infect_stds + data.infect_means
 
         pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
         gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
-
 
     x = np.arange(250)
     plt.figure(figsize=(20, 10))
