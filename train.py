@@ -228,6 +228,11 @@ def train() -> None:
     best_model = torch.load(model_filepath)
     best_model.odefunc.data = test_data
 
+    # You can try using forward through time and taking the feeding only the first 100 timepoints
+    # to the model encoder as follows:
+    # best_model.backwards_through_time = False
+    # best_model(..., timestep_to_stop_encoder=100)
+
     log("Extrapolation starts")
     num_windows = test_data.num_windows
     side_len = math.ceil(math.sqrt(num_windows))
