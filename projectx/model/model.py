@@ -73,7 +73,7 @@ class Model(torch.nn.Module):
             else:
                 _, h = self.encoder(data_window[:-encoder_timesteps], h_init)
         else:
-            _, h = self.encoder(data_window[:encoder_timesteps], h_init)
+            _, h = self.encoder(data_window, h_init)
 
         # We squeeze the time and `h` to accommodate the batchless way that `odeint` works.
         time_window = time_window.squeeze()
@@ -91,7 +91,7 @@ class Model(torch.nn.Module):
         hs = torchdiffeq.odeint(
             self.odefunc,
             h,
-            time_window[encoder_timesteps:],
+            time_window[encoder_timesteps:] if encoder_timesteps else time_window,
             rtol=self.hyperparams.rtol,
             atol=self.hyperparams.atol,
             method="euler",
