@@ -69,9 +69,9 @@ class Model(torch.nn.Module):
         h_init = torch.randn(1, 1, self.hyperparams.hidden_dims).to(self.device)
         if encoder_timesteps is not None:
             if self.backwards_through_time:
-                _, h = self.encoder(data_window[:encoder_timesteps], h_init)
-            else:
                 _, h = self.encoder(data_window[:-encoder_timesteps], h_init)
+            else:
+                _, h = self.encoder(data_window[:encoder_timesteps], h_init)
         else:
             _, h = self.encoder(data_window, h_init)
 
