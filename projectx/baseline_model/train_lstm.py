@@ -90,7 +90,7 @@ def train(
                 y_batch = torch.from_numpy(
                     target
                 ).float()  # torch.tensor(target,dtype=torch.float32)
-                mv_net.init_hidden(x_batch.size(0))
+                mv_net.init_hidden(x_batch.size(0), device)
                 output = mv_net(x_batch)
                 # loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
                 infect_dist = torch.distributions.normal.Normal(y_batch, 0.1)
@@ -112,7 +112,7 @@ def train(
                 ]  # /np.linalg.norm(y_test[b:b+batch_size])
                 x_batch = torch.from_numpy(test_seq).float().to(device)
                 y_batch = torch.from_numpy(label_seq).float()
-                mv_net.init_hidden(x_batch.size(0))
+                mv_net.init_hidden(x_batch.size(0), device)
                 try:
                     output = mv_net(x_batch)
                     # batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
@@ -123,6 +123,8 @@ def train(
                     val_loss += batch_val_loss.item()
                 except:
                     continue
+
+        # compute train and validation loss per epoch
         num_batches_train = len(X_train) // batch_size
         num_batches_test = len(X_valid) // batch_size
         train_loss = step_loss / num_batches_train
@@ -148,4 +150,5 @@ def train(
 
 
 if __name__ == "__main__":
-    train(path_train="./toy.csv", path_valid ='', save_path="./lstm_state_dict.pt")
+    # train(path_train="./toy.csv", path_valid ='', save_path="./lstm_state_dict.pt")
+    train(path_train="../../data/-83.812_10.39_train.csv", path_valid="../../data/-83.812_10.39_valid.csv", save_path="./lstm_state_dict.pt")
