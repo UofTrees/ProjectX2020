@@ -46,9 +46,10 @@ def train(
     save_path,
     n_features=4,
     n_timesteps=100,
-    train_episodes=256,
+    train_episodes=200,
     batch_size=256,
     lr=0.001,
+    variance=0.5
 ):
 
     df = pd.read_csv(path_train)
@@ -116,7 +117,7 @@ def train(
                 try:
                     output = mv_net(x_batch)
                     # batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                    infect_dist = torch.distributions.normal.Normal(y_batch, 0.5)
+                    infect_dist = torch.distributions.normal.Normal(y_batch, variance)
                     batch_val_loss = -infect_dist.log_prob(
                         output.squeeze().cpu()
                     ).mean()
@@ -141,14 +142,15 @@ def train(
     updates = [i for i in range(1, len(loss_plot) + 1)]
     plt.plot(updates, loss_plot, label="Training loss")
     plt.plot(updates, val_loss_plot, label="Validation loss")
-    plt.title("MLE Loss Curve (batch_size=256, lr=0.001)")
-    plt.xlabel("Steps")
+    plt.title("LSTM: loss curve")
+    plt.xlabel("Step")
     plt.ylabel("Loss")
     plt.legend()
-    plt.savefig("./MLE Curve for LSTM.jpg")
-    plt.show()
+    plt.savefig("./lstm_loss_curve.jpg")
+    # plt.show()
 
 
 if __name__ == "__main__":
     # train(path_train="./toy.csv", path_valid ='', save_path="./lstm_state_dict.pt")
-    train(path_train="../../data/-83.812_10.39_train.csv", path_valid="../../data/-83.812_10.39_valid.csv", save_path="./lstm_state_dict.pt")
+    # train(path_train="../../data/-83.812_10.39_train.csv", path_valid="../../data/-83.812_10.39_valid.csv", save_path="./lstm_state_dict.pt")
+    train(path_train="./-83.812_10.39_train.csv", path_valid="./-83.812_10.39_valid.csv", save_path="./lstm_state_dict.pt")
