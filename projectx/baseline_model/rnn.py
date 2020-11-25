@@ -17,10 +17,11 @@ class RNNModel(torch.nn.Module):
         # (batch_size,seq_len, num_directions * hidden_size)
         # when considering batch_first = True
         self.l_linear = torch.nn.Linear(self.n_hidden * self.seq_len, 1)
+        self.hidden = torch.Tensor()
 
-    def init_hidden(self, batch_size):
+    def init_hidden(self, batch_size, device):
         # even with batch_first = True this remains same as docs
-        hidden_state = torch.zeros(self.n_layers, batch_size, self.n_hidden).cuda()
+        hidden_state = torch.zeros(self.n_layers, batch_size, self.n_hidden).to(device)
         self.hidden = hidden_state
 
     def forward(self, x):

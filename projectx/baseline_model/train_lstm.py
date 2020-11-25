@@ -93,7 +93,7 @@ def train(
                 mv_net.init_hidden(x_batch.size(0), device)
                 output = mv_net(x_batch)
                 # loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                infect_dist = torch.distributions.normal.Normal(y_batch, 0.1)
+                infect_dist = torch.distributions.normal.Normal(y_batch, 0.5)
                 loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
                 loss.backward()
                 optimizer.step()
@@ -116,7 +116,7 @@ def train(
                 try:
                     output = mv_net(x_batch)
                     # batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                    infect_dist = torch.distributions.normal.Normal(y_batch, 0.1)
+                    infect_dist = torch.distributions.normal.Normal(y_batch, 0.5)
                     batch_val_loss = -infect_dist.log_prob(
                         output.squeeze().cpu()
                     ).mean()

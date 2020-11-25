@@ -28,8 +28,8 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
     label = []
     with torch.no_grad():
         for i in range(150):
-            x_batch = torch.from_numpy(test_seq).float().cuda()
-            mv_net.init_hidden(x_batch.size(0))
+            x_batch = torch.from_numpy(test_seq).float().to(device)
+            mv_net.init_hidden(x_batch.size(0), device)
             output = mv_net(x_batch)
             t = output.cpu().view(-1).numpy()[0]
             # Produce output of the extrapolation
@@ -77,9 +77,9 @@ def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
         for b in range(0, len(X), batch_size):
             test_seq = X[b:b + batch_size, :, :]  # /np.linalg.norm(X)
             label_seq = y[b:b + batch_size]  # /np.linalg.norm(y[b:b+batch_size])
-            x_batch = torch.from_numpy(test_seq).float().cuda()
+            x_batch = torch.from_numpy(test_seq).float().to(device)
             y_batch = torch.from_numpy(label_seq).float()
-            mv_net.init_hidden(x_batch.size(0))
+            mv_net.init_hidden(x_batch.size(0), device)
             try:
                 output = mv_net(x_batch)
                 # loss = criterion(output.view(-1), np.transpose(y_batch))
@@ -100,4 +100,3 @@ def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     plt.show()
 if __name__ == "__main__":
     eval(pt_path = '')
-

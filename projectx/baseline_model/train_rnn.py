@@ -36,7 +36,7 @@ def split_sequences(seq, n_steps):
     return np.array(X), np.array(y)
 
 def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 256, batch_size = 256, lr=0.001):
-    
+
     df = pd.read_csv(path)
     del df['date']
     sq = df.to_numpy()
@@ -48,6 +48,10 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
     mv_net = RNNModel(n_features, n_timesteps)
     #criterion = torch.nn.MSELoss(reduction='sum')  # reduction='sum' created huge loss value
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=lr)
+
+    # use GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    mv_net.to(device)
 
     mv_net.train()
     best_loss = 10000000
@@ -61,9 +65,9 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
             inpt = X_train[b:b + batch_size, :, :]  # /np.linalg.norm(X_train[b:b+batch_size,:,:])
             target = y_train[b:b + batch_size]  # /np.linalg.norm(y_train[b:b+batch_size])
             if target.shape[0] != 0:
-                x_batch = torch.from_numpy(inpt).float().cuda()  # torch.tensor(inpt,dtype=torch.float32)
+                x_batch = torch.from_numpy(inpt).float().to(device)  # torch.tensor(inpt,dtype=torch.float32)
                 y_batch = torch.from_numpy(target).float()  # torch.tensor(target,dtype=torch.float32)
-                mv_net.init_hidden(x_batch.size(0))
+                mv_net.init_hidden(x_batch.size(0), device)
                 output = mv_net(x_batch)
                 #loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
                 infect_dist = torch.distributions.normal.Normal(output, 0.1)
@@ -79,9 +83,9 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
             for b in range(0, len(X_test), batch_size):
                 test_seq = X_test[b:b + batch_size, :, :]  # /np.linalg.norm(X_test)
                 label_seq = y_test[b:b + batch_size]  # /np.linalg.norm(y_test[b:b+batch_size])
-                x_batch = torch.from_numpy(test_seq).float().cuda()
+                x_batch = torch.from_numpy(test_seq).float().to(device)
                 y_batch = torch.from_numpy(label_seq).float()
-                mv_net.init_hidden(x_batch.size(0))
+                mv_net.init_hidden(x_batch.size(0), device)
                 try:
                     output = mv_net(x_batch)
                     batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
@@ -109,6 +113,3 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
 
 if __name__ == "__main__":
     train(path = './toy.csv', save_path= './rnn_state_dict.pt')
-
-
-
