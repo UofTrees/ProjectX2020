@@ -2,11 +2,12 @@ from lstm import MV_LSTM
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
 
 def split_sequences(seq, n_steps):
     X, y = [], []
     for i in range(len(seq) - n_steps - 1):
-        seq_x, seq_y = seq[i:(i + n_steps), :], seq[i + n_steps+150, 3]
+        seq_x, seq_y = seq[i:(i+n_steps), :], 0
         X.append(seq_x)
         y.append(seq_y)
     return np.array(X), np.array(y)
@@ -14,7 +15,6 @@ def split_sequences(seq, n_steps):
 def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1):
     # use GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    mv_net.to(device)
 
     df = pd.read_csv(path)
     del df['date']
@@ -23,13 +23,14 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
 
     mv_net = MV_LSTM(n_features,n_timesteps)
     mv_net.load_state_dict(torch.load(pt_path))
+    mv_net.to(device)
     X_trapolate = X[100:250]
     test_seq = X[0:1]
     preds = []
     labels = []
-    for j in range(0, len(X_test), 250):
-        X_trapolate = X_test[j+100:j+250]
-        test_seq = X_test[j:j+1]
+    for j in range(0, len(X)-(len(X)%250)-1, 250):
+        X_trapolate = X[j+100:j+250]
+        test_seq = X[j:j+1]
         pred = []
         label = []
         with torch.no_grad():
@@ -40,6 +41,7 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
                 t = output.cpu().view(-1).numpy()[0]
                 # Produce output of the extrapolation
                 pred.append(t)
+                # import pdb; pdb.set_trace()
                 label.append(X_trapolate[i][0][3])
                 # Update test seq
                 np_to_add = X_trapolate[i][0]
@@ -55,20 +57,20 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
         pred = preds[j]
         label = labels[j]
         updates = [i for i in range(1, 151)]
-        plt.figure(figsize=(20, 10))
+        # plt.figure(figsize=(20, 10))
+        plt.figure()
         plt.plot(updates, pred, label="Prediction")
         plt.plot(updates, label, label="Groud Truth")
         plt.title("Prediction vs Groud Truth (MLE extrapolated)")
         plt.xlabel("Steps")
         plt.ylabel("num_infect")
         plt.legend()
-        plt.show()
-        plt.savefig('./MLE Extrapolation for LSTM for '{}' window.jpg'.format(j))
+        # plt.show()
+        plt.savefig('./MLE Extrapolation for LSTM for {} window.jpg'.format(j))
 
 def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     # use GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    mv_net.to(device)
 
     # Predict on test set
     df = pd.read_csv(path)
@@ -77,6 +79,7 @@ def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     X, y = split_sequences(sq, n_steps=n_timesteps)
 
     mv_net = MV_LSTM(n_features, n_timesteps)
+    mv_net.to(device)
     criterion = torch.nn.MSELoss(reduction='sum')  # reduction='sum' created huge loss value
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=0.001)
 
@@ -109,5 +112,7 @@ def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     plt.legend()
     plt.savefig('./MLE Prediction for LSTM.jpg')
     plt.show()
+
 if __name__ == "__main__":
-    eval(pt_path = '', path = '')
+    # eval(pt_path = '', path = '')
+    extrapolate(pt_path="./lstm_state_dict.pt", path="./-83.812_10.39_test.csv")
