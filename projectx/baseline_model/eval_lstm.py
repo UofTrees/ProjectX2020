@@ -12,7 +12,7 @@ def split_sequences(seq, n_steps):
         y.append(seq_y)
     return np.array(X), np.array(y)
 
-def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1):
+def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1, n_hidden=20):
     # use GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -21,7 +21,7 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
     sq = df.to_numpy()
     X, y = split_sequences(sq, n_steps=n_timesteps)
 
-    mv_net = MV_LSTM(n_features,n_timesteps)
+    mv_net = MV_LSTM(n_features,n_timesteps,n_hidden)
     mv_net.load_state_dict(torch.load(pt_path))
     mv_net.to(device)
     X_trapolate = X[100:250]
@@ -57,16 +57,15 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
         pred = preds[j]
         label = labels[j]
         updates = [i for i in range(1, 151)]
-        # plt.figure(figsize=(20, 10))
-        plt.figure()
+        plt.figure(figsize=(20, 10))
         plt.plot(updates, pred, label="Prediction")
         plt.plot(updates, label, label="Groud Truth")
-        plt.title("Prediction vs Groud Truth (MLE extrapolated)")
-        plt.xlabel("Steps")
+        plt.title("LSTM: Prediction vs Groud Truth")
+        plt.xlabel("Step")
         plt.ylabel("num_infect")
         plt.legend()
         # plt.show()
-        plt.savefig('./MLE Extrapolation for LSTM for {} window.jpg'.format(j))
+        plt.savefig(f"./lstm_pred_vs_gt_{j}.jpg")
 
 def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     # use GPU
@@ -106,11 +105,11 @@ def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     plt.figure(figsize=(20, 10))
     plt.plot(updates[:200], preds[:200], label="Prediction")
     plt.plot(updates[:200], labels[:200], label="Groud Truth")
-    plt.title("Prediction vs Groud Truth (first 200 timesteps)")
-    plt.xlabel("Steps")
+    plt.title("LSTM: Prediction vs Groud Truth")
+    plt.xlabel("Step")
     plt.ylabel("num_infect")
     plt.legend()
-    plt.savefig('./MLE Prediction for LSTM.jpg')
+    plt.savefig('./lstm_pred_vs_gt.jpg')
     plt.show()
 
 if __name__ == "__main__":

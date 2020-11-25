@@ -2,11 +2,11 @@ import torch
 
 
 class MV_LSTM(torch.nn.Module):
-    def __init__(self, n_features, seq_length):
+    def __init__(self, n_features, seq_length, n_hidden=20):
         super(MV_LSTM, self).__init__()
         self.n_features = n_features
         self.seq_len = seq_length
-        self.n_hidden = 20  # number of hidden state's features
+        self.n_hidden = n_hidden  # number of hidden state's features
         self.n_layers = 1  # number of LSTM layers (stacked)
         self.l_lstm = torch.nn.LSTM(
             input_size=n_features,

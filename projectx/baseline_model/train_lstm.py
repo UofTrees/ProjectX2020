@@ -49,7 +49,8 @@ def train(
     train_episodes=200,
     batch_size=256,
     lr=0.001,
-    variance=0.5
+    variance=0.5,
+    n_hidden=20
 ):
 
     df = pd.read_csv(path_train)
@@ -62,7 +63,7 @@ def train(
     sq = df.to_numpy()
     X_valid, y_valid = split_sequences(sq, n_steps=n_timesteps)
 
-    mv_net = MV_LSTM(n_features, n_timesteps)
+    mv_net = MV_LSTM(n_features, n_timesteps, n_hidden)
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=lr)
 
     # use GPU
