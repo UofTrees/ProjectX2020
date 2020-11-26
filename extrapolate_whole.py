@@ -40,8 +40,8 @@ def extrapolate() -> None:
         print("Running on CPU")
 
     # Get the data
-    train_data_path = pathlib.Path("data/-83.812_10.39_train.csv").resolve()
-    test_data_path = pathlib.Path("data/-83.812_10.39_test.csv").resolve()
+    train_data_path = [pathlib.Path("data/-83.812_10.39_train.csv").resolve()]
+    test_data_path = [pathlib.Path("data/-83.812_10.39_test.csv").resolve()]
     train_data = Data(
         data_path=train_data_path,
         device=device,
