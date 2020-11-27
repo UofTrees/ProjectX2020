@@ -53,11 +53,12 @@ class Model(torch.nn.Module):
         infect_window: torch.Tensor,
         time_window: torch.Tensor,
     ) -> torch.Tensor:
+        cut_time_window = time_window[: weather_window.shape[0]]
         if self._use_diff_time:
             diff_time_window = torch.cat(
                 (
-                    torch.zeros(time_window.shape[0], 1).to(self.device),
-                    time_window[:, 1:] - time_window[:, :-1],
+                    torch.zeros(cut_time_window.shape[0], 1).to(self.device),
+                    cut_time_window[:, 1:] - cut_time_window[:, :-1],
                 ),
                 dim=1,
             ).unsqueeze(-1)
