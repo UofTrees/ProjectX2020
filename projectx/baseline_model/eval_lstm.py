@@ -52,10 +52,17 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1,
                 test_seq = np.array(arr)
         preds.append(pred)
         labels.append(label)
+
     # Visualize preds vs labels
+    # Also calculate average MSE loss per window
+    losses = 0
     for j in range(1,21):
+        # computing MSE loss
         pred = preds[j]
         label = labels[j]
+        losses += np.mean(np.square(np.array(pred)-np.array(label)))
+
+        # plotting
         updates = [i for i in range(1, 151)]
         plt.figure(figsize=(20, 10))
         plt.plot(updates, pred, label="Prediction")
@@ -66,6 +73,7 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1,
         plt.legend()
         # plt.show()
         plt.savefig(f"./lstm_pred_vs_gt_{j}.jpg")
+    print(f"LSTM: average MSE Loss per window: {losses / 20}")
 
 def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     # use GPU

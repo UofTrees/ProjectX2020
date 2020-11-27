@@ -50,7 +50,8 @@ def train(
     batch_size=256,
     lr=0.001,
     variance=0.5,
-    n_hidden=20
+    n_hidden=20,
+    metrics="MLE"
 ):
 
     df = pd.read_csv(path_train)
@@ -65,6 +66,7 @@ def train(
 
     mv_net = MV_LSTM(n_features, n_timesteps, n_hidden)
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=lr)
+    criterion = torch.nn.MSELoss()
 
     # use GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -94,9 +96,13 @@ def train(
                 ).float()  # torch.tensor(target,dtype=torch.float32)
                 mv_net.init_hidden(x_batch.size(0), device)
                 output = mv_net(x_batch)
-                # loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                infect_dist = torch.distributions.normal.Normal(y_batch, 0.5)
-                loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
+
+                if metrics == "MLE":
+                    infect_dist = torch.distributions.normal.Normal(y_batch, 0.5)
+                    loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
+                elif metrics == "MSE":
+                    loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
+
                 loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
@@ -117,11 +123,14 @@ def train(
                 mv_net.init_hidden(x_batch.size(0), device)
                 try:
                     output = mv_net(x_batch)
-                    # batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                    infect_dist = torch.distributions.normal.Normal(y_batch, variance)
-                    batch_val_loss = -infect_dist.log_prob(
-                        output.squeeze().cpu()
-                    ).mean()
+                    if metrics == "MLE":
+                        infect_dist = torch.distributions.normal.Normal(y_batch, variance)
+                        batch_val_loss = -infect_dist.log_prob(
+                            output.squeeze().cpu()
+                        ).mean()
+                    elif metrics == "MSE":
+                        batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
+
                     val_loss += batch_val_loss.item()
                 except:
                     continue
