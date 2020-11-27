@@ -53,7 +53,8 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
 
 def get_job_id(hyperparams: Hyperparameters) -> str:
     return (
-        f"lr{hyperparams.lr:.1e}"
+        f"region3"
+        + f"lr{hyperparams.lr:.1e}"
         + f"_enc{hyperparams.encoder_fc_dims}"
         + f"_hidden{hyperparams.hidden_dims}"
         + f"_ode{hyperparams.odefunc_fc_dims}"
@@ -102,7 +103,8 @@ def train() -> None:
 
     # Get the training and validation data
     train_data_path = [pathlib.Path("data/-83.812_10.39_train.csv").resolve(), 
-    pathlib.Path("data/73.125_18.8143_train.csv").resolve()]
+    pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
+    pathlib.Path("data/126_7.5819_train.csv").resolve()]
     train_data = Data(
         data_path=train_data_path,
         device=device,
@@ -110,7 +112,8 @@ def train() -> None:
         batch_size=1,
     )
     valid_data_path = [pathlib.Path("data/-83.812_10.39_valid.csv").resolve(),
-    pathlib.Path("data/73.125_18.8143_valid.csv").resolve()]
+    pathlib.Path("data/73.125_18.8143_valid.csv").resolve(),
+    pathlib.Path("data/126_7.5819_valid.csv").resolve()]
     valid_data = Data(
         data_path=valid_data_path,
         device=device,
@@ -218,8 +221,7 @@ def train() -> None:
     ###########################
 
     # Get data with the window length for extrapolation
-    test_data_path = [pathlib.Path("data/-83.812_10.39_test.csv").resolve(),
-    pathlib.Path("data/73.125_18.8143_test.csv").resolve()]
+    test_data_path = [pathlib.Path("data/-83.812_10.39_test.csv").resolve()]
     test_data = Data(
         data_path=test_data_path,
         device=device,
