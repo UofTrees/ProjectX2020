@@ -1,5 +1,5 @@
-import math
 import argparse
+import math
 import pathlib
 from typing import Optional
 
@@ -29,6 +29,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num_epochs", default=10, type=int)
     parser.add_argument("--rtol", default=1e-4, type=float)
     parser.add_argument("--atol", default=1e-6, type=float)
+    parser.add_argument("--drop_rate", default=0, type=float)
+    parser.add_argument("--use_diff_time", default=False, type=bool)
 
     return parser.parse_args()
 
@@ -48,6 +50,8 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
         num_epochs=args.num_epochs,
         rtol=args.rtol,
         atol=args.atol,
+        drop_rate=args.drop_rate,
+        use_diff_time=args.use_diff_time,
     )
 
 
@@ -63,6 +67,8 @@ def get_job_id(hyperparams: Hyperparameters) -> str:
         + f"_epochs{hyperparams.num_epochs}"
         + f"_rtol{hyperparams.rtol}"
         + f"_atol{hyperparams.atol}"
+        + f"_atol{hyperparams.drop_rate}"
+        + ("_difftime" if hyperparams.use_diff_time else "")
     )
 
 
@@ -102,18 +108,22 @@ def train() -> None:
         log("Running on CPU")
 
     # Get the training and validation data
-    train_data_path = [pathlib.Path("data/-83.812_10.39_train.csv").resolve(), 
-    pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
-    pathlib.Path("data/126_7.5819_train.csv").resolve()]
+    train_data_path = [
+        pathlib.Path("data/-83.812_10.39_train.csv").resolve(),
+        pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
+        pathlib.Path("data/126_7.5819_train.csv").resolve()
+    ]
     train_data = Data(
         data_path=train_data_path,
         device=device,
         window_length=hyperparams.window_length,
         batch_size=1,
     )
-    valid_data_path = [pathlib.Path("data/-83.812_10.39_valid.csv").resolve(),
-    pathlib.Path("data/73.125_18.8143_valid.csv").resolve(),
-    pathlib.Path("data/126_7.5819_valid.csv").resolve()]
+    valid_data_path = [
+            pathlib.Path("data/-83.812_10.39_valid.csv").resolve(),
+            pathlib.Path("data/73.125_18.8143_valid.csv").resolve(),
+            pathlib.Path("data/126_7.5819_valid.csv").resolve()
+    ]
     valid_data = Data(
         data_path=valid_data_path,
         device=device,
@@ -122,7 +132,12 @@ def train() -> None:
     )
 
     # Set up the model
-    model = Model(data=train_data, hyperparams=hyperparams, device=device)
+    model = Model(
+        data=train_data,
+        hyperparams=hyperparams,
+        device=device,
+        use_diff_time=hyperparams.use_diff_time,
+    )
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=hyperparams.lr,
@@ -135,11 +150,12 @@ def train() -> None:
 
     all_train_avg_loss, all_valid_avg_loss = [], []
     lowest_valid_avg_loss: Optional[float] = None
+    drop_rate = hyperparams.drop_rate
 
     for epoch in range(hyperparams.num_epochs):
         train_total_loss = 0.0
         for i, (time_window, weather_window, infect_window) in enumerate(
-            train_data.windows()
+            train_data.windows(drop_rate=drop_rate)
         ):
             optimizer.zero_grad()
 

@@ -17,3 +17,5 @@ class Hyperparameters:
     num_epochs: int
     rtol: float
     atol: float
+    drop_rate: float
+    use_diff_time: bool
