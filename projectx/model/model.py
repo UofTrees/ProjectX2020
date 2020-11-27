@@ -13,12 +13,14 @@ class Model(torch.nn.Module):
     encoder: torch.nn.Module
     decoder: torch.nn.Module
     odefunc: torch.nn.Module
+    _use_diff_time: bool
 
     def __init__(
         self,
         data: Data,
         hyperparams: Hyperparameters,
         device: torch.device,
+        use_diff_time: bool = False,
     ) -> None:
         super().__init__()
 
@@ -26,7 +28,7 @@ class Model(torch.nn.Module):
         self.device = device
 
         self.encoder = Encoder(
-            input_dim=self.hyperparams.input_dims,
+            input_dim=self.hyperparams.input_dims + int(use_diff_time),
             fc_dims=self.hyperparams.encoder_fc_dims,
             hidden_dim=self.hyperparams.hidden_dims,
             dropout_rate=self.hyperparams.dropout_rate,
@@ -43,14 +45,27 @@ class Model(torch.nn.Module):
             output_dim=self.hyperparams.output_dims,
         ).to(self.device)
 
+        self._use_diff_time = use_diff_time
+
     def forward(
         self,
         weather_window: torch.Tensor,
         infect_window: torch.Tensor,
         time_window: torch.Tensor,
     ) -> torch.Tensor:
-
-        data_window = torch.cat((weather_window, infect_window), dim=2)
+        if self._use_diff_time:
+            diff_time_window = torch.cat(
+                (
+                    torch.zeros(time_window.shape[0], 1).to(self.device),
+                    time_window[:, 1:] - time_window[:, :-1],
+                ),
+                dim=1,
+            ).unsqueeze(-1)
+            data_window = torch.cat(
+                (diff_time_window, weather_window, infect_window), dim=2
+            )
+        else:
+            data_window = torch.cat((weather_window, infect_window), dim=2)
         reversed_data_window = data_window.flip(0)
 
         # We feed the data to the encoder reversed so it comes up with `h` corresponding

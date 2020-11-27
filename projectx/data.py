@@ -1,6 +1,7 @@
 import datetime
 import pathlib
-from typing import ClassVar, Generator, Tuple
+import random
+from typing import ClassVar, Dict, Generator, List, Tuple
 
 import pandas as pd
 import torch
@@ -29,6 +30,8 @@ class Data:
     _time_tensor: torch.Tensor
     _normalized_time_tensor: torch.Tensor
     _normalized_timestep_delta: float
+
+    __rand_mem: Dict[Tuple[int, int], float]
 
     def __init__(
         self,
@@ -73,6 +76,8 @@ class Data:
         self._normalized_time_tensor = self._time_tensor / max_time
         self._normalized_timestep_delta = self._TIMESTEP_DELTA / max_time
 
+        self.__rand_mem = {}
+
     @property
     def infect_means(self) -> torch.Tensor:
         return self._infect_means
@@ -89,12 +94,14 @@ class Data:
 
     def windows(
         self,
+        drop_rate: float = 0,
     ) -> Generator[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], None, None]:
-        yield from zip(
-            self._time_windows(),
-            self._weather_windows(),
-            self._infect_windows(),
-        )
+        for window in zip(
+            self._time_windows(drop_rate=drop_rate),
+            self._weather_windows(drop_rate=drop_rate),
+            self._infect_windows(drop_rate=drop_rate),
+        ):
+            yield window
 
     def weather_at_time(self, t: torch.Tensor) -> torch.Tensor:
         """
@@ -172,9 +179,13 @@ class Data:
         data = (data - means) / stds
         return data, means, stds
 
-    @staticmethod
     def _data_windows(
-        data: torch.Tensor, *, window_length: int, batch_size: int
+        self,
+        data: torch.Tensor,
+        *,
+        window_length: int,
+        batch_size: int,
+        drop_rate: float,
     ) -> Generator[torch.Tensor, None, None]:
         """
         Send one batch of `batch_size` windows.
@@ -182,32 +193,60 @@ class Data:
 
         Output shape is (window_length, batch_size, data.shape[1])
         """
-
         data_windows = []
         for i in range(0, data.shape[0] - window_length, window_length):
-            window_slice = slice(i, i + window_length)
-            data_windows.append(data[window_slice])
+            if drop_rate > 0:
+                j = i - 1
+                count = 0
+                data_window = torch.empty(window_length, *data.shape[1:]).to(
+                    self._device
+                )
+                while count < window_length:
+                    j += 1
+                    if self._get_random(i, j) < drop_rate:
+                        continue
+                    data_window[count] = data[j]
+                    count += 1
+                data_windows.append(data_window)
+            else:
+                window_slice = slice(i, i + window_length)
+                data_windows.append(data[window_slice])
             if (i + 1) % batch_size == 0 or i == data.shape[0] - window_length:
                 yield torch.stack(data_windows, dim=1)
                 data_windows = []
 
-    def _weather_windows(self) -> Generator[torch.Tensor, None, None]:
+    def _weather_windows(
+        self, *, drop_rate: float
+    ) -> Generator[torch.Tensor, None, None]:
         yield from self._data_windows(
             self._normalized_weather_tensor,
             window_length=self._window_length,
             batch_size=self._batch_size,
+            drop_rate=drop_rate,
         )
 
-    def _infect_windows(self) -> Generator[torch.Tensor, None, None]:
+    def _infect_windows(
+        self, *, drop_rate: float
+    ) -> Generator[torch.Tensor, None, None]:
         yield from self._data_windows(
             self._normalized_infect_tensor,
             window_length=self._window_length,
             batch_size=self._batch_size,
+            drop_rate=drop_rate,
         )
 
-    def _time_windows(self) -> Generator[torch.Tensor, None, None]:
+    def _time_windows(self, *, drop_rate: float) -> Generator[torch.Tensor, None, None]:
         yield from self._data_windows(
             self._normalized_time_tensor,
             window_length=self._window_length,
             batch_size=self._batch_size,
+            drop_rate=drop_rate,
         )
+
+    def _get_random(self, i: int, j: int) -> float:
+        try:
+            return self.__rand_mem[(i, j)]
+        except KeyError:
+            rand = random.random()
+            self.__rand_mem[(i, j)] = rand
+            return rand
