@@ -203,7 +203,11 @@ class Data:
                 )
                 while count < window_length:
                     j += 1
-                    if self._get_random(i, j) < drop_rate:
+                    # We need to make sure we don't go out of bounds with j.
+                    if (
+                        j < data.shape[0] - window_length
+                        and self._get_random(i, j) < drop_rate
+                    ):
                         continue
                     data_window[count] = data[j]
                     count += 1
