@@ -28,7 +28,8 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1,
     test_seq = X[0:1]
     preds = []
     labels = []
-    for j in range(0, len(X)-(len(X)%250)-1, 250):
+    # for j in range(0, len(X)-(len(X)%250)-1, 250):
+    for j in range(0, 250*21, 250):
         X_trapolate = X[j+100:j+250]
         test_seq = X[j:j+1]
         pred = []
@@ -56,7 +57,7 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1,
     # Visualize preds vs labels
     # Also calculate average MSE loss per window
     losses = 0
-    for j in range(1,21):
+    for j in range(21):
         # computing MSE loss
         pred = preds[j]
         label = labels[j]
@@ -73,7 +74,7 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1,
         plt.legend()
         # plt.show()
         plt.savefig(f"./lstm_pred_vs_gt_{j}.jpg")
-    print(f"LSTM: average MSE Loss per window: {losses / 20}")
+    print(f"LSTM: average MSE Loss per window: {losses / 21}")
 
 def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     # use GPU
