@@ -12,6 +12,17 @@ from projectx.data import Data
 EXTRAPOLATION_WINDOW_LENGTH = 250
 GT_STEPS_FOR_EXTRAPOLATION = 100
 
+def get_indexes_to_keep(original_length: int, drop_rate: float):
+    """
+    Randomly sample `(1 - drop_rate) * original_length` indexes without replacement
+    """
+    num_to_keep = np.floor(original_length * (1 - drop_rate)).astype(int)
+    indexes_to_keep = sorted(np.random.choice(
+        original_length, num_to_keep, replace=False
+    ))
+
+    return indexes_to_keep
+
 
 def extrapolate() -> None:
 
@@ -19,13 +30,18 @@ def extrapolate() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--job_id",
-        default="region2lr1.0e-03_enc[8, 16, 8]_hidden10_ode[4, 8, 8, 4]_dec[8, 16, 8]_window128_epochs256_rtol0.0001_atol1e-06",
+        default="lr7.0e-05_enc[4, 4]_hidden4_ode[16, 16, 16, 16]_dec[8, 16, 8]_window128_epochs256_rtol0.0001_atol1e-06",
         type=str,
     )
     parser.add_argument(
         "--plot_indiv",
         default=False,
         type=bool,
+    )
+    parser.add_argument(
+        "--drop_rate",
+        default=0,
+        type=float,
     )
     args = parser.parse_args()
 
@@ -47,12 +63,12 @@ def extrapolate() -> None:
     # Get the data
     train_data_path = [
         pathlib.Path("data/-83.812_10.39_train.csv").resolve(),
-        #pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
+        pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
         #pathlib.Path("data/126_7.5819_train.csv").resolve(),
     ]
     test_data_path = [
         pathlib.Path("data/-83.812_10.39_test.csv").resolve(),
-        #pathlib.Path("data/73.125_18.8143_test.csv").resolve(),
+        pathlib.Path("data/73.125_18.8143_test.csv").resolve(),
         #pathlib.Path("data/126_7.5819_test.csv").resolve(),
     ]
     train_data = Data(
@@ -94,8 +110,9 @@ def extrapolate() -> None:
             fontsize=40,
         )
 
-    criterion = torch.nn.MSELoss()
-    total_loss = 0
+    mse = torch.nn.MSELoss()
+    total_mse_loss = 0
+    total_mle_loss = 0
 
     with torch.no_grad():
         # For every window, use the first 100 to produce the initial latent state
@@ -108,15 +125,14 @@ def extrapolate() -> None:
                 gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION],
             )
 
+            indexes_to_keep = get_indexes_to_keep(GT_STEPS_FOR_EXTRAPOLATION, args.drop_rate)
+            print(len(indexes_to_keep))
+
             infect_hat = best_model(
                 time_window=time_window,
-                weather_window=weather_window,
-                infect_window=infect_window,
+                weather_window=weather_window[indexes_to_keep],
+                infect_window=infect_window[indexes_to_keep],
             )
-            infect_dist = torch.distributions.normal.Normal(
-                infect_hat[GT_STEPS_FOR_EXTRAPOLATION:].squeeze(), 0.1
-            )
-            loss = -infect_dist.log_prob(gt_infect_window[GT_STEPS_FOR_EXTRAPOLATION:].squeeze()).mean()
 
             # Denormalize using means and stds from TRAINING data
             pred_infect = infect_hat * train_data.infect_stds + train_data.infect_means
@@ -127,9 +143,17 @@ def extrapolate() -> None:
             # Calculate MSE loss only for extrapolation
             extrapol_pred_infect = pred_infect[GT_STEPS_FOR_EXTRAPOLATION:]
             extrapol_gt_infect = gt_infect[GT_STEPS_FOR_EXTRAPOLATION:]
+            mse_loss = mse(extrapol_pred_infect, extrapol_gt_infect)
 
-            #loss = criterion(extrapol_pred_infect, extrapol_gt_infect)
-            total_loss += loss.item()
+            # Calculate MLE loss only for extrapolation
+            infect_dist = torch.distributions.normal.Normal(
+                pred_infect[GT_STEPS_FOR_EXTRAPOLATION:].squeeze(), 0.1
+            )
+            mle_loss = -infect_dist.log_prob(gt_infect[GT_STEPS_FOR_EXTRAPOLATION:].squeeze()).mean()
+
+            # Accumulate losses
+            total_mle_loss += mle_loss.item()
+            total_mse_loss += mse_loss.item()
 
             # Plot predictions
             dates = test_data.dates[
@@ -170,8 +194,9 @@ def extrapolate() -> None:
             
     # Note down the test set loss
     loss_txt_filepath = plots_dir / f"{args.job_id}_test_loss.txt"
-    avg_loss = total_loss / test_data.num_windows
-    msg = f"Avg test loss: {avg_loss}\n"
+    avg_mle_loss = total_mle_loss / test_data.num_windows
+    avg_mse_loss = total_mse_loss / test_data.num_windows
+    msg = f"Avg test MLE loss: {avg_mle_loss}\nAvg test MSE loss: {avg_mse_loss}\n"
     with open(loss_txt_filepath, "w") as f:
         f.writelines(msg)
     print(msg)
