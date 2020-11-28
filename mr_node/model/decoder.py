@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 import torch
-from projectx.utils import pairwise
+from mr_node.utils import pairwise
 
 
 class Decoder(torch.nn.Module):

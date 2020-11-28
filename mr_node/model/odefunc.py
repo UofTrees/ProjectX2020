@@ -1,8 +1,8 @@
 from typing import List
 
 import torch
-from projectx.data import Data
-from projectx.utils import pairwise
+from mr_node.data import Data
+from mr_node.utils import pairwise
 
 
 class ODEFunc(torch.nn.Module):

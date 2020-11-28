@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from projectx.data import Data
+from mr_node.data import Data
 
 
 EXTRAPOLATION_WINDOW_LENGTH = 250
@@ -126,7 +126,6 @@ def extrapolate() -> None:
             )
 
             indexes_to_keep = get_indexes_to_keep(GT_STEPS_FOR_EXTRAPOLATION, args.drop_rate)
-            print(len(indexes_to_keep))
 
             infect_hat = best_model(
                 time_window=time_window,

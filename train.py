@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from projectx.data import Data
-from projectx.hyperparams import Hyperparameters
-from projectx.model import Model
+from mr_node.data import Data
+from mr_node.hyperparams import Hyperparameters
+from mr_node.model import Model
 
 # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 EXTRAPOLATION_WINDOW_LENGTH = 250
@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--odefunc_fc_dims", nargs="+", default=[64, 64], type=int)
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
-    parser.add_argument("--num_epochs", default=10, type=int)
+    parser.add_argument("--num_epochs", default=1, type=int)
     parser.add_argument("--rtol", default=1e-4, type=float)
     parser.add_argument("--atol", default=1e-6, type=float)
 
