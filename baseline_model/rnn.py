@@ -6,7 +6,7 @@ class RNNModel(torch.nn.Module):
         super(RNNModel, self).__init__()
         self.n_features = n_features
         self.seq_len = seq_length
-        self.n_hidden = 20  # number of hidden states
+        self.n_hidden = 40  # number of hidden states
         self.n_layers = 1  # number of RNN layers (stacked)
 
         self.l_rnn = torch.nn.RNN(input_size=n_features,
