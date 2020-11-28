@@ -113,7 +113,7 @@ def extrapolate() -> None:
             # Denormalize using means and stds from TRAINING data
             pred_infect = infect_hat * train_data.infect_stds + train_data.infect_means
             gt_infect = (
-                gt_infect_window * train_data.infect_stds + train_data.infect_means
+                gt_infect_window * test_data.infect_stds + test_data.infect_means
             )
             
             # Calculate MSE loss only for extrapolation
