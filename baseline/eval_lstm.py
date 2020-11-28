@@ -1,37 +1,42 @@
-from rnn import RNNModel
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.metrics import mean_squared_error
+
+from baseline.lstm import MV_LSTM
 
 def split_sequences(seq, n_steps):
     X, y = [], []
     for i in range(len(seq) - n_steps - 1):
-        seq_x, seq_y = seq[i:(i + n_steps), :], seq[i + n_steps+150, 3]
+        seq_x, seq_y = seq[i:(i+n_steps), :], 0
         X.append(seq_x)
         y.append(seq_y)
     return np.array(X), np.array(y)
 
-def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1):
+def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1, n_hidden=20):
     # use GPU
-
-    mv_net = RNNModel(n_features,n_timesteps)
-    mv_net.load_state_dict(torch.load(pt_path))
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    mv_net.to(device)
+
+    # temporary
+    # df2 = pd.read_csv("./73.125_18.8143_test.csv")
+    # del df2["date"]
+    # sq2 = df2.to_numpy()
 
     df = pd.read_csv(path)
     del df['date']
     sq = df.to_numpy()
+    # sq = np.concatenate((sq, sq2), axis=0)
     X, y = split_sequences(sq, n_steps=n_timesteps)
-    
+
+    mv_net = MV_LSTM(n_features,n_timesteps,n_hidden)
+    mv_net.load_state_dict(torch.load(pt_path))
+    mv_net.to(device)
+    X_trapolate = X[100:250]
+    test_seq = X[0:1]
     preds = []
     labels = []
-    losses = []
-    running_loss = 0
 
+    # for j in range(0, len(X)-(len(X)%250)-1, 250):
     for j in range(0, 250*21, 250):
         X_trapolate = X[j+100:j+250]
         test_seq = X[j:j+1]
@@ -56,30 +61,32 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
                 test_seq = np.array(arr)
         preds.append(pred)
         labels.append(label)
-        loss = mean_squared_error(pred, label)
-        running_loss += loss
-        losses.append(loss)
-    print(sum(losses)/len(losses))
 
     # Visualize preds vs labels
+    # Also calculate average MSE loss per window
+    losses = 0
     for j in range(21):
+        # computing MSE loss
         pred = preds[j]
         label = labels[j]
+        losses += np.mean(np.square(np.array(pred)-np.array(label)))
+
+        # plotting
         updates = [i for i in range(1, 151)]
         plt.figure(figsize=(20, 10))
         plt.plot(updates, pred, label="Prediction")
         plt.plot(updates, label, label="Groud Truth")
-        plt.title("RNN: Prediction vs Groud Truth")
+        plt.title("LSTM: Prediction vs Groud Truth")
         plt.xlabel("Step")
         plt.ylabel("num_infect")
         plt.legend()
         # plt.show()
-        plt.savefig(f"./rnn_pred_vs_gt_{j}.jpg")
+        plt.savefig(f"./lstm_pred_vs_gt_{j}.jpg")
+    print(f"LSTM: average MSE Loss per window: {losses / 21}")
 
 def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     # use GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    mv_net.to(device)
 
     # Predict on test set
     df = pd.read_csv(path)
@@ -87,7 +94,8 @@ def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     sq = df.to_numpy()
     X, y = split_sequences(sq, n_steps=n_timesteps)
 
-    mv_net = RNNModel(n_features, n_timesteps)
+    mv_net = MV_LSTM(n_features, n_timesteps)
+    mv_net.to(device)
     criterion = torch.nn.MSELoss(reduction='sum')  # reduction='sum' created huge loss value
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=0.001)
 
@@ -114,11 +122,13 @@ def eval(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 256):
     plt.figure(figsize=(20, 10))
     plt.plot(updates[:200], preds[:200], label="Prediction")
     plt.plot(updates[:200], labels[:200], label="Groud Truth")
-    plt.title("Prediction vs Groud Truth (first 200 timesteps)")
-    plt.xlabel("Steps")
+    plt.title("LSTM: Prediction vs Groud Truth")
+    plt.xlabel("Step")
     plt.ylabel("num_infect")
     plt.legend()
-    plt.savefig('./MLE Prediction for RNN.jpg')
+    plt.savefig('./lstm_pred_vs_gt.jpg')
     plt.show()
+
 if __name__ == "__main__":
-    eval(pt_path = '')
+    # eval(pt_path = '', path = '')
+    extrapolate(pt_path="./lstm_state_dict.pt", path="./-83.812_10.39_test.csv")

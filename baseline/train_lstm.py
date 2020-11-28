@@ -1,13 +1,11 @@
-import random
+import argparse
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import argparse
 import pandas as pd
-from hyperparams import Hyperparameters
 
-# multivariate data preparation
-from lstm import MV_LSTM
+from baseline.hyperparams import Hyperparameters
+from baseline.lstm import MV_LSTM
 
 
 def parse_args() -> argparse.Namespace:

@@ -1,12 +1,12 @@
-import random
+import argparse
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import argparse
 import pandas as pd
-from Hyperparams import Hyperparameters
-# multivariate data preparation
-from rnn import RNNModel
+
+from baseline.hyperparams import Hyperparameters
+from baseline.rnn import RNNModel
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
