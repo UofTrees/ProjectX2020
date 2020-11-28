@@ -111,7 +111,7 @@ def train() -> None:
     train_data_path = [
         pathlib.Path("data/-83.812_10.39_train.csv").resolve(),
         pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
-        pathlib.Path("data/126_7.5819_train.csv").resolve()
+        pathlib.Path("data/126_7.5819_train.csv").resolve(),
     ]
     train_data = Data(
         data_path=train_data_path,
@@ -120,9 +120,9 @@ def train() -> None:
         batch_size=1,
     )
     valid_data_path = [
-            pathlib.Path("data/-83.812_10.39_valid.csv").resolve(),
-            pathlib.Path("data/73.125_18.8143_valid.csv").resolve(),
-            pathlib.Path("data/126_7.5819_valid.csv").resolve()
+        pathlib.Path("data/-83.812_10.39_valid.csv").resolve(),
+        pathlib.Path("data/73.125_18.8143_valid.csv").resolve(),
+        pathlib.Path("data/126_7.5819_valid.csv").resolve(),
     ]
     valid_data = Data(
         data_path=valid_data_path,
@@ -198,13 +198,13 @@ def train() -> None:
 
                 # Give the model the validation data so its ODEFunc can correctly fetch weather data for evaluation
                 # Then immediately give the model back the training data for the next epoch
-                model.odefunc.data = valid_data
+                # model.odefunc.data = valid_data
                 valid_infect_mu = model(
                     time_window=time_window,
                     weather_window=weather_window_beginning,
                     infect_window=infect_window_beginning,
                 )
-                model.odefunc.data = train_data
+                # model.odefunc.data = train_data
                 valid_infect_dist = torch.distributions.normal.Normal(
                     valid_infect_mu.squeeze(), hyperparams.variance
                 )
@@ -246,7 +246,7 @@ def train() -> None:
     )
     # Use the best model and give it the test data so ODEFunc can fetch the correct weather data
     best_model = torch.load(model_filepath)
-    best_model.odefunc.data = test_data
+    # best_model.odefunc.data = test_data
 
     log("Extrapolation starts")
     num_windows = test_data.num_windows
