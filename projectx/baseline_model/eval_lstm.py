@@ -16,9 +16,15 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1,
     # use GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # temporary
+    # df2 = pd.read_csv("./73.125_18.8143_test.csv")
+    # del df2["date"]
+    # sq2 = df2.to_numpy()
+
     df = pd.read_csv(path)
     del df['date']
     sq = df.to_numpy()
+    # sq = np.concatenate((sq, sq2), axis=0)
     X, y = split_sequences(sq, n_steps=n_timesteps)
 
     mv_net = MV_LSTM(n_features,n_timesteps,n_hidden)
@@ -28,6 +34,7 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1,
     test_seq = X[0:1]
     preds = []
     labels = []
+
     # for j in range(0, len(X)-(len(X)%250)-1, 250):
     for j in range(0, 250*21, 250):
         X_trapolate = X[j+100:j+250]
