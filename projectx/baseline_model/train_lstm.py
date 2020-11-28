@@ -53,15 +53,26 @@ def train(
     n_hidden=20,
     metrics="MLE"
 ):
+    # temporary
+    df2_train = pd.read_csv("./73.125_18.8143_train.csv")
+    del df2_train["date"]
+    sq2_train = df2_train.to_numpy()
+
+    df2_valid = pd.read_csv("./73.125_18.8143_valid.csv")
+    del df2_valid["date"]
+    sq2_valid = df2_valid.to_numpy()
+
 
     df = pd.read_csv(path_train)
     del df["date"]
     sq = df.to_numpy()
+    sq = np.concatenate((sq, sq2_train), axis=0)
     X_train, y_train = split_sequences(sq, n_steps=n_timesteps)
 
     df = pd.read_csv(path_valid)
     del df["date"]
     sq = df.to_numpy()
+    sq = np.concatenate((sq, sq2_valid), axis=0)
     X_valid, y_valid = split_sequences(sq, n_steps=n_timesteps)
 
     mv_net = MV_LSTM(n_features, n_timesteps, n_hidden)
