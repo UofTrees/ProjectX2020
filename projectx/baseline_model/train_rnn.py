@@ -35,43 +35,59 @@ def split_sequences(seq, n_steps):
         y.append(seq_y)
     return np.array(X), np.array(y)
 
-def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 256, batch_size = 256, lr=0.001):
+def train(path_train, path_valid, path_test, save_path, n_features = 4, n_timesteps = 100, train_episodes = 256, batch_size = 256, lr=0.001):
 
-    df = pd.read_csv(path)
-    del df['date']
-    sq = df.to_numpy()
-    X, y = split_sequences(sq, n_steps = n_timesteps)
+    df_train = pd.read_csv(path_train)
+    df_valid = pd.read_csv(path_valid)
+    df_test = pd.read_csv(path_test)
 
-    X_train, y_train = X[:int(len(X) * 0.9)], y[:int(len(X) * 0.9)]
-    X_test, y_test = X[int(len(X) * 0.9):], y[int(len(X) * 0.9):]
+    del df_train['date']
+    del df_valid['date']
+    del df_test['date']
 
-    mv_net = RNNModel(n_features, n_timesteps)
+    sq_train = df_train.to_numpy()
+    sq_test = df_test.to_numpy()
+    sq_valid = df_valid.to_numpy()
+
+    X_train, y_train = split_sequences(sq_train, n_timesteps)
+    X_valid, y_valid = split_sequences(sq_valid, n_timesteps)
+    X_test, y_test = split_sequences(sq_test, n_timesteps)
+
+    model = RNNModel(n_features, n_timesteps)
     #criterion = torch.nn.MSELoss(reduction='sum')  # reduction='sum' created huge loss value
     optimizer = torch.optim.Adam(mv_net.parameters(), lr=lr)
 
     # use GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    mv_net.to(device)
+    model.to(device)
 
-    mv_net.train()
+    model.train()
     best_loss = 10000000
     loss_plot = []
     val_loss_plot = []
     for t in range(train_episodes):
         step_loss = 0
-        count = 0
         for b in range(0, len(X_train), batch_size):
-            count += 1
-            inpt = X_train[b:b + batch_size, :, :]  # /np.linalg.norm(X_train[b:b+batch_size,:,:])
-            target = y_train[b:b + batch_size]  # /np.linalg.norm(y_train[b:b+batch_size])
+            if b + batch_size > len(X_train):
+                break
+            inpt = X_train[
+                b : b + batch_size, :, :
+            ]  # /np.linalg.norm(X_train[b:b+batch_size,:,:])
+            target = y_train[
+                b : b + batch_size
+            ]  # /np.linalg.norm(y_train[b:b+batch_size])
             if target.shape[0] != 0:
-                x_batch = torch.from_numpy(inpt).float().to(device)  # torch.tensor(inpt,dtype=torch.float32)
-                y_batch = torch.from_numpy(target).float()  # torch.tensor(target,dtype=torch.float32)
-                mv_net.init_hidden(x_batch.size(0), device)
-                output = mv_net(x_batch)
-                #loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                infect_dist = torch.distributions.normal.Normal(output, 0.1)
-                loss = -infect_dist.log_prob(output).mean()
+                x_batch = (
+                    torch.from_numpy(inpt).float().to(device)
+                )  # torch.tensor(inpt,dtype=torch.float32)
+                y_batch = torch.from_numpy(
+                    target
+                ).float()  # torch.tensor(target,dtype=torch.float32)
+                model.init_hidden(x_batch.size(0))
+                output = model(x_batch)
+                # loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
+                infect_dist = torch.distributions.normal.Normal(y_batch, 0.5)
+                loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
                 loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
@@ -80,26 +96,39 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
         # validation
         val_loss = 0
         with torch.no_grad():
-            for b in range(0, len(X_test), batch_size):
-                test_seq = X_test[b:b + batch_size, :, :]  # /np.linalg.norm(X_test)
-                label_seq = y_test[b:b + batch_size]  # /np.linalg.norm(y_test[b:b+batch_size])
+            for b in range(0, len(X_valid), batch_size):
+                if b + batch_size > len(X_valid):
+                    break
+                test_seq = X_valid[b : b + batch_size, :, :]  
+                label_seq = y_valid[
+                    b : b + batch_size
+                ]  
                 x_batch = torch.from_numpy(test_seq).float().to(device)
                 y_batch = torch.from_numpy(label_seq).float()
-                mv_net.init_hidden(x_batch.size(0), device)
+                model.init_hidden(x_batch.size(0))
                 try:
-                    output = mv_net(x_batch)
-                    batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
+                    output = model(x_batch)
+                    # batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
+                    infect_dist = torch.distributions.normal.Normal(y_batch, 0.5)
+                    batch_val_loss = -infect_dist.log_prob(
+                        output.squeeze().cpu()
+                    ).mean()
                     val_loss += batch_val_loss.item()
                 except:
                     continue
-        loss_plot.append(step_loss / len(X_train))
-        val_loss_plot.append(val_loss / len(X_test))
-        if val_loss / len(X_test) < best_loss:
-            torch.save(mv_net.state_dict(), save_path)
-            best_loss = val_loss / len(X_test)
 
-        print('step : ', t, 'training loss : ', step_loss / len(X_train))
-        print('step : ', t, 'validation loss : ', val_loss / len(X_test))
+    num_batches_train = len(X_train) // batch_size
+    num_batches_test = len(X_valid) // batch_size
+    train_loss = step_loss / num_batches_train
+    valid_loss = val_loss / num_batches_test
+    loss_plot.append(train_loss)
+    val_loss_plot.append(valid_loss)
+    if valid_loss < best_loss:
+        torch.save(model.state_dict(), 'mle_rnn_state_dict_model.pt')
+        best_loss = valid_loss
+
+    print("step : ", t, "training loss : ", train_loss)
+    print("step : ", t, "validation loss : ", valid_loss)
 
     updates = [i for i in range(1, len(loss_plot) + 1)]
     plt.plot(updates, loss_plot, label="Training loss")
@@ -112,4 +141,3 @@ def train(path, save_path, n_features = 4,n_timesteps = 100, train_episodes = 25
     plt.show()
 
 if __name__ == "__main__":
-    train(path = './toy.csv', save_path= './rnn_state_dict.pt')
