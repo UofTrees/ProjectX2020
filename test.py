@@ -19,7 +19,7 @@ def extrapolate() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--job_id",
-        default="region3lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[8, 16, 8]_window128_epochs1_rtol0.0001_atol1e-06",
+        default="region2lr1.0e-03_enc[8, 16, 8]_hidden10_ode[4, 8, 8, 4]_dec[8, 16, 8]_window128_epochs256_rtol0.0001_atol1e-06",
         type=str,
     )
     parser.add_argument(
@@ -47,10 +47,14 @@ def extrapolate() -> None:
     # Get the data
     train_data_path = [
         pathlib.Path("data/-83.812_10.39_train.csv").resolve(),
-        pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
-        pathlib.Path("data/126_7.5819_train.csv").resolve(),
+        #pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
+        #pathlib.Path("data/126_7.5819_train.csv").resolve(),
     ]
-    test_data_path = [pathlib.Path("data/-83.812_10.39_test.csv").resolve()]
+    test_data_path = [
+        pathlib.Path("data/-83.812_10.39_test.csv").resolve(),
+        #pathlib.Path("data/73.125_18.8143_test.csv").resolve(),
+        #pathlib.Path("data/126_7.5819_test.csv").resolve(),
+    ]
     train_data = Data(
         data_path=train_data_path,
         device=device,
@@ -109,6 +113,10 @@ def extrapolate() -> None:
                 weather_window=weather_window,
                 infect_window=infect_window,
             )
+            infect_dist = torch.distributions.normal.Normal(
+                infect_hat[GT_STEPS_FOR_EXTRAPOLATION:].squeeze(), 0.1
+            )
+            loss = -infect_dist.log_prob(gt_infect_window[GT_STEPS_FOR_EXTRAPOLATION:].squeeze()).mean()
 
             # Denormalize using means and stds from TRAINING data
             pred_infect = infect_hat * train_data.infect_stds + train_data.infect_means
@@ -119,7 +127,8 @@ def extrapolate() -> None:
             # Calculate MSE loss only for extrapolation
             extrapol_pred_infect = pred_infect[GT_STEPS_FOR_EXTRAPOLATION:]
             extrapol_gt_infect = gt_infect[GT_STEPS_FOR_EXTRAPOLATION:]
-            loss = criterion(extrapol_pred_infect, extrapol_gt_infect)
+
+            #loss = criterion(extrapol_pred_infect, extrapol_gt_infect)
             total_loss += loss.item()
 
             # Plot predictions
