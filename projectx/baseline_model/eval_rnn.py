@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from sklearn.metrics import mean_squared_error
 
 def split_sequences(seq, n_steps):
     X, y = [], []
@@ -28,6 +29,8 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
     
     preds = []
     labels = []
+    losses = []
+    running_loss = 0
 
     for j in range(0, 250*21, 250):
         X_trapolate = X[j+100:j+250]
@@ -53,7 +56,10 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1)
                 test_seq = np.array(arr)
         preds.append(pred)
         labels.append(label)
-        
+        loss = mean_squared_error(pred, label)
+        running_loss += loss
+        losses.append(loss)
+    print(sum(losses)/len(losses))
 
     # Visualize preds vs labels
     for j in range(21):

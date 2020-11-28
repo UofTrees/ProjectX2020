@@ -35,7 +35,7 @@ def split_sequences(seq, n_steps):
         y.append(seq_y)
     return np.array(X), np.array(y)
 
-def train(path_train, path_valid, path_test, save_path, n_features = 4, n_timesteps = 100, train_episodes = 256, batch_size = 256, lr=0.001):
+def train(path_train, path_valid, path_test, save_path, path_train_more = None, path_valid_more = None, path_test_more= None, save_path, n_features = 4, n_timesteps = 100, train_episodes = 256, batch_size = 256, lr=0.001):
 
     df_train = pd.read_csv(path_train)
     df_valid = pd.read_csv(path_valid)
@@ -44,6 +44,14 @@ def train(path_train, path_valid, path_test, save_path, n_features = 4, n_timest
     del df_train['date']
     del df_valid['date']
     del df_test['date']
+
+    if not path_train_more is None or path_valid_more is None or path_test_more is None:
+        df_surplus_train = pd.read_csv(path_train_more)
+        df_surplus_valid = pd.read_csv(path_valid_more)
+        del df_surplus_train['date']
+        del df_surplus_valid['date']
+        df_train = pd.concat([df_train, df_surplus_train], axis=0)
+        df_valid = pd.concat([df_valid, df_surplus_valid], axis=0)
 
     sq_train = df_train.to_numpy()
     sq_test = df_test.to_numpy()
@@ -86,7 +94,7 @@ def train(path_train, path_valid, path_test, save_path, n_features = 4, n_timest
                 model.init_hidden(x_batch.size(0))
                 output = model(x_batch)
                 # loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                infect_dist = torch.distributions.normal.Normal(y_batch, 0.5)
+                infect_dist = torch.distributions.normal.Normal(y_batch, 0.1)
                 loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
                 loss.backward()
                 optimizer.step()
@@ -109,7 +117,7 @@ def train(path_train, path_valid, path_test, save_path, n_features = 4, n_timest
                 try:
                     output = model(x_batch)
                     # batch_val_loss = criterion(output.cpu().view(-1), np.transpose(y_batch))
-                    infect_dist = torch.distributions.normal.Normal(y_batch, 0.5)
+                    infect_dist = torch.distributions.normal.Normal(y_batch, 0.1)
                     batch_val_loss = -infect_dist.log_prob(
                         output.squeeze().cpu()
                     ).mean()
