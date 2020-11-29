@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from baseline.lstm import MV_LSTM
+from lstm import MV_LSTM
 
 def split_sequences(seq, n_steps):
     X, y = [], []

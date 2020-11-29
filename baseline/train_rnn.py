@@ -4,8 +4,8 @@ import torch
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from baseline.hyperparams import Hyperparameters
-from baseline.rnn import RNNModel
+from hyperparams import Hyperparameters
+from rnn import RNNModel
 
 
 def parse_args() -> argparse.Namespace:

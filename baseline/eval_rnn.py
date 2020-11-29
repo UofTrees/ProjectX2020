@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 from sklearn.metrics import mean_squared_error
 
-from baseline.rnn import RNNModel
+from rnn import RNNModel
 
 def split_sequences(seq, n_steps):
     X, y = [], []
