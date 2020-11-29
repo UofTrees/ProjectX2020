@@ -17,7 +17,7 @@ NUM_WINDOWS = 21
 
 
 def test() -> None:
-    
+
     # Retrieve the job_id
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -38,7 +38,7 @@ def test() -> None:
 
     # Get the data
     test_data_paths = [
-        pathlib.Path("../data/-83.812_10.39_test.csv").resolve(), 
+        pathlib.Path("../data/-83.812_10.39_test.csv").resolve(),
         #pathlib.Path("../data/73.125_18.8143_test.csv").resolve(),
         #pathlib.Path("../data/126_7.5819_test.csv").resolve()
         ]
@@ -47,7 +47,7 @@ def test() -> None:
 
     # Load the model to test
     model = torch.load(model_filepath, map_location=device)
-    
+
 
 
     # Get all predictions and labels
@@ -95,7 +95,7 @@ def test() -> None:
             pred, 0.1
         )
         mle_loss = -infect_dist.log_prob(label).mean()
-        
+
         total_mle_loss += mle_loss.item()
         total_mse_loss += mse_loss.item()
 
@@ -104,7 +104,10 @@ def test() -> None:
         plt.figure(figsize=(20, 10))
         plt.plot(updates, pred, label="Prediction")
         plt.plot(updates, label, label="Ground Truth")
-        plt.title("LSTM: Prediction vs Ground Truth")
+        if "lstm" in args.job_id:
+            plt.title("LSTM: Prediction vs Ground Truth")
+        elif "rnn" in args.job_id:
+            plt.title("RNN: Prediction vs Ground Truth")
         plt.xlabel("Step")
         plt.ylabel("num_infect")
         plt.legend()

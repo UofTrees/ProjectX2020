@@ -57,20 +57,20 @@ def train(hyperparams: Hyperparameters) -> None:
     plots_dir = root / "plots"
     if not plots_dir.exists():
         plots_dir.mkdir()
-        
+
     job_id = get_job_id(hyperparams)
     model_filepath = models_dir / f"{job_id}.pt"
     loss_plot_filepath = plots_dir / f"{job_id}_loss.png"
-    
+
     # Get the data
     train_data_paths = [
-        pathlib.Path("../data/-83.812_10.39_train.csv").resolve(), 
+        pathlib.Path("../data/-83.812_10.39_train.csv").resolve(),
         #pathlib.Path("../data/73.125_18.8143_train.csv").resolve(),
         #pathlib.Path("../data/126_7.5819_train.csv").resolve()
         ]
-    
+
     valid_data_paths = [
-        pathlib.Path("../data/-83.812_10.39_valid.csv").resolve(), 
+        pathlib.Path("../data/-83.812_10.39_valid.csv").resolve(),
         #pathlib.Path("../data/73.125_18.8143_valid.csv").resolve(),
         #pathlib.Path("../data/126_7.5819_valid.csv").resolve()
         ]
@@ -84,19 +84,19 @@ def train(hyperparams: Hyperparameters) -> None:
 
     # Get the model
     if hyperparams.model_name == 'lstm':
-        model = BaselineLSTM(hyperparams.input_size, 
-                             hyperparams.sequence_length, 
+        model = BaselineLSTM(hyperparams.input_size,
+                             hyperparams.sequence_length,
                              hyperparams.n_hidden)
     elif hyperparams.model_name == 'rnn':
-        model = BaselineRNN(hyperparams.input_size, 
-                            hyperparams.sequence_length, 
+        model = BaselineRNN(hyperparams.input_size,
+                            hyperparams.sequence_length,
                             hyperparams.n_hidden)
     else:
         raise AssertionError("model_name must be 'lstm' or 'rnn'")
     optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams.lr)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    
+
 
     # Train
     model.train()
@@ -170,7 +170,10 @@ def train(hyperparams: Hyperparameters) -> None:
     updates = [i for i in range(1, len(all_train_loss) + 1)]
     plt.plot(updates, all_train_loss, label="Training loss")
     plt.plot(updates, all_val_loss, label="Validation loss")
-    plt.title("Loss curve")
+    if hyperparams.model_name == "lstm":
+        plt.title("LSTM: Loss curve")
+    elif hyperparams.model_name == "rnn":
+        plt.title("RNN: Loss curve")
     plt.xlabel("Step")
     plt.ylabel("Loss")
     plt.legend()
