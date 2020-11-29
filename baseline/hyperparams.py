@@ -7,6 +7,7 @@ class Hyperparameters:
     batch_size: int
     sequence_length: int
     num_epochs: int
-    n_features: int
     n_hidden: int
+    input_size: int
     variance: float
+    model_name: str
