@@ -10,6 +10,7 @@ import torch
 from mr_node.data import Data
 from mr_node.hyperparams import Hyperparameters
 from mr_node.model import Model
+from mr_node.utils import get_region_coords
 
 # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 EXTRAPOLATION_WINDOW_LENGTH = 250
@@ -19,8 +20,8 @@ GT_STEPS_FOR_EXTRAPOLATION = 100
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--region", default="cr", type=str)
     parser.add_argument("--lr", default=3e-4, type=float)
-    parser.add_argument("--dropout_rate", default=0.5, type=float)
     parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--hidden_dims", default=4, type=int)
     parser.add_argument("--odefunc_fc_dims", nargs="+", default=[64, 64], type=int)
@@ -35,15 +36,16 @@ def parse_args() -> argparse.Namespace:
 
 def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
     return Hyperparameters(
+        region=args.region,
         lr=args.lr,
-        dropout_rate=args.dropout_rate,
+        dropout_rate=0.5,
         input_dims=4,
         output_dims=1,
         encoder_fc_dims=args.encoder_fc_dims,
         hidden_dims=args.hidden_dims,
         odefunc_fc_dims=args.odefunc_fc_dims,
         decoder_fc_dims=args.decoder_fc_dims,
-        variance=0.1,
+        std=0.1,
         window_length=args.window_length,
         num_epochs=args.num_epochs,
         rtol=args.rtol,
@@ -53,8 +55,8 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
 
 def get_job_id(hyperparams: Hyperparameters) -> str:
     return (
-        f"region3"
-        + f"lr{hyperparams.lr:.1e}"
+        f"{hyperparams.region}"
+        + f"_lr{hyperparams.lr:.1e}"
         + f"_enc{hyperparams.encoder_fc_dims}"
         + f"_hidden{hyperparams.hidden_dims}"
         + f"_ode{hyperparams.odefunc_fc_dims}"
@@ -102,18 +104,18 @@ def train() -> None:
         log("Running on CPU")
 
     # Get the training and validation data
-    train_data_path = [pathlib.Path("data/-83.812_10.39_train.csv").resolve(), 
-    pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
-    pathlib.Path("data/126_7.5819_train.csv").resolve()]
+    region_coords = get_region_coords(hyperparams.region)
+    train_data_path, valid_data_path = [], []
+    for coord in region_coords:
+        train_data_path.append(pathlib.Path(f"data/{coord}_train.csv").resolve())
+        valid_data_path.append(pathlib.Path(f"data/{coord}_valid.csv").resolve())
+
     train_data = Data(
         data_path=train_data_path,
         device=device,
         window_length=hyperparams.window_length,
         batch_size=1,
     )
-    valid_data_path = [pathlib.Path("data/-83.812_10.39_valid.csv").resolve(),
-    pathlib.Path("data/73.125_18.8143_valid.csv").resolve(),
-    pathlib.Path("data/126_7.5819_valid.csv").resolve()]
     valid_data = Data(
         data_path=valid_data_path,
         device=device,
@@ -128,9 +130,7 @@ def train() -> None:
         lr=hyperparams.lr,
     )
 
-    ###########################
     # Train
-    ###########################
     log("Training starts")
 
     all_train_avg_loss, all_valid_avg_loss = [], []
@@ -149,7 +149,7 @@ def train() -> None:
                 infect_window=infect_window,
             )
             infect_dist = torch.distributions.normal.Normal(
-                infect_mu.squeeze(), hyperparams.variance
+                infect_mu.squeeze(), hyperparams.std
             )
 
             train_loss = -infect_dist.log_prob(infect_window.squeeze()).mean()
@@ -190,7 +190,7 @@ def train() -> None:
                 )
                 model.odefunc.data = train_data
                 valid_infect_dist = torch.distributions.normal.Normal(
-                    valid_infect_mu.squeeze(), hyperparams.variance
+                    valid_infect_mu.squeeze(), hyperparams.std
                 )
 
                 valid_loss = -valid_infect_dist.log_prob(
@@ -215,86 +215,6 @@ def train() -> None:
     plt.title("Neural ODE: loss curve")
     plt.legend(loc="best")
     plt.savefig(loss_plot_filepath)
-
-    ###########################
-    # Extrapolate
-    ###########################
-
-    # Get data with the window length for extrapolation
-    test_data_path = [pathlib.Path("data/-83.812_10.39_test.csv").resolve()]
-    test_data = Data(
-        data_path=test_data_path,
-        device=device,
-        window_length=EXTRAPOLATION_WINDOW_LENGTH,
-        batch_size=1,
-    )
-    # Use the best model and give it the test data so ODEFunc can fetch the correct weather data
-    best_model = torch.load(model_filepath)
-    best_model.odefunc.data = test_data
-
-    log("Extrapolation starts")
-    num_windows = test_data.num_windows
-    side_len = math.ceil(math.sqrt(num_windows))
-    fig, axes = plt.subplots(side_len, side_len, figsize=(100, 35), sharey=True)
-    plt.tight_layout()
-    plt.suptitle(
-        "Neural ODE: Predicted vs GT number of infections (extrapolations are to the RHS of the vertical line)",
-        fontsize=40,
-    )
-
-    with torch.no_grad():
-        # For every window, use the first 100 to produce the initial latent state
-        # Then predict num_infect for those 100, as well as for 150 time steps in the future
-        for i, (time_window, gt_weather_window, gt_infect_window) in enumerate(
-            test_data.windows()
-        ):
-            weather_window, infect_window = (
-                gt_weather_window[:GT_STEPS_FOR_EXTRAPOLATION],
-                gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION],
-            )
-
-            infect_hat = best_model(
-                time_window=time_window,
-                weather_window=weather_window,
-                infect_window=infect_window,
-            )
-
-            # Denormalize using means and stds from TRAINING data
-            pred_infect = infect_hat * train_data.infect_stds + train_data.infect_means
-            gt_infect = (
-                gt_infect_window * test_data.infect_stds + test_data.infect_means
-            )
-
-            pred_infect = pred_infect.squeeze(-1).squeeze(-1).cpu().numpy()
-            gt_infect = gt_infect.squeeze(-1).squeeze(-1).cpu().numpy()
-
-            # Plot predictions
-            dates = test_data.dates[
-                i * EXTRAPOLATION_WINDOW_LENGTH : (i + 1) * EXTRAPOLATION_WINDOW_LENGTH
-            ].to_list()
-            demarcation = dates[GT_STEPS_FOR_EXTRAPOLATION]
-
-            row_idx = i // side_len
-            col_idx = i % side_len
-            axes[row_idx, col_idx].plot(dates, pred_infect, label="Prediction")
-            axes[row_idx, col_idx].plot(dates, gt_infect, label="Ground truth")
-            axes[row_idx, col_idx].axvline(
-                x=demarcation, color="gray", linewidth=2, linestyle="solid"
-            )
-            axes[row_idx, col_idx].set_xlabel("Date")
-            axes[row_idx, col_idx].set_ylabel("num_infect")
-
-    for j in range(num_windows + 1, side_len ** 2):
-        row_idx = j // side_len
-        col_idx = j % side_len
-        fig.delaxes(axes[row_idx][col_idx])
-
-    row_idx_final = (num_windows - 1) // side_len
-    col_idx_final = (num_windows - 1) % side_len
-    lines, labels = axes[row_idx_final, col_idx_final].get_legend_handles_labels()
-    fig.legend(lines, labels, fontsize=40, loc="upper left")
-    extrapolation_plot_filepath = plots_dir / f"{job_id}.png"
-    plt.savefig(extrapolation_plot_filepath)
 
     log("Done")
 

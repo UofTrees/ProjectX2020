@@ -7,20 +7,31 @@ import numpy as np
 import torch
 
 from mr_node.data import Data
+from mr_node.utils import get_region_coords
 
 
 EXTRAPOLATION_WINDOW_LENGTH = 250
 GT_STEPS_FOR_EXTRAPOLATION = 100
 
 
-def get_indexes_to_keep(original_length: int, drop_rate: float):
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected.")
+
+
+def get_indexes_to_keep(original_length: int, num_to_keep: float):
     """
-    Randomly sample `(1 - drop_rate) * original_length` indexes without replacement
+    Randomly sample `num_to_keep` indexes without replacement
     """
-    num_to_keep = np.floor(original_length * (1 - drop_rate)).astype(int)
-    indexes_to_keep = sorted(np.random.choice(
-        original_length, num_to_keep, replace=False
-    ))
+    indexes_to_keep = sorted(
+        np.random.choice(original_length, num_to_keep, replace=False)
+    )
 
     return indexes_to_keep
 
@@ -29,22 +40,26 @@ def test() -> None:
 
     # Retrieve the job_id
     parser = argparse.ArgumentParser()
+    parser.add_argument("--region", default="cr", type=str)
     parser.add_argument(
         "--job_id",
-        default="lr7.0e-05_enc[4, 4]_hidden4_ode[16, 16, 16, 16]_dec[8, 16, 8]_window128_epochs256_rtol0.0001_atol1e-06",
+        default="cr_lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[64, 64]_window128_epochs1_rtol0.0001_atol1e-06",
         type=str,
     )
     parser.add_argument(
         "--plot_indiv",
         default=False,
-        type=bool,
+        type=str2bool,
     )
     parser.add_argument(
-        "--drop_rate",
-        default=0,
-        type=float,
+        "--num_to_keep",
+        default=100,
+        type=int,
     )
     args = parser.parse_args()
+
+    if args.num_to_keep > GT_STEPS_FOR_EXTRAPOLATION or args.num_to_keep < 0:
+        raise AssertionError("--num_to_keep must be positive and no greater than 100")
 
     # Get all folders and files
     root = pathlib.Path("results").resolve()
@@ -62,16 +77,12 @@ def test() -> None:
         print("Running on CPU")
 
     # Get the data
-    train_data_path = [
-        pathlib.Path("data/-83.812_10.39_train.csv").resolve(),
-        pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
-        #pathlib.Path("data/126_7.5819_train.csv").resolve(),
-    ]
-    test_data_path = [
-        pathlib.Path("data/-83.812_10.39_test.csv").resolve(),
-        pathlib.Path("data/73.125_18.8143_test.csv").resolve(),
-        #pathlib.Path("data/126_7.5819_test.csv").resolve(),
-    ]
+    region_coords = get_region_coords(args.region)
+    train_data_path, test_data_path = [], []
+    for coord in region_coords:
+        train_data_path.append(pathlib.Path(f"data/{coord}_train.csv").resolve())
+        test_data_path.append(pathlib.Path(f"data/{coord}_test.csv").resolve())
+
     train_data = Data(
         data_path=train_data_path,
         device=device,
@@ -126,7 +137,9 @@ def test() -> None:
                 gt_infect_window[:GT_STEPS_FOR_EXTRAPOLATION],
             )
 
-            indexes_to_keep = get_indexes_to_keep(GT_STEPS_FOR_EXTRAPOLATION, args.drop_rate)
+            indexes_to_keep = get_indexes_to_keep(
+                GT_STEPS_FOR_EXTRAPOLATION, args.num_to_keep
+            )
 
             infect_hat = best_model(
                 time_window=time_window,
@@ -139,7 +152,7 @@ def test() -> None:
             gt_infect = (
                 gt_infect_window * test_data.infect_stds + test_data.infect_means
             )
-            
+
             # Calculate MSE loss only for extrapolation
             extrapol_pred_infect = pred_infect[GT_STEPS_FOR_EXTRAPOLATION:]
             extrapol_gt_infect = gt_infect[GT_STEPS_FOR_EXTRAPOLATION:]
@@ -149,7 +162,9 @@ def test() -> None:
             infect_dist = torch.distributions.normal.Normal(
                 pred_infect[GT_STEPS_FOR_EXTRAPOLATION:].squeeze(), 0.1
             )
-            mle_loss = -infect_dist.log_prob(gt_infect[GT_STEPS_FOR_EXTRAPOLATION:].squeeze()).mean()
+            mle_loss = -infect_dist.log_prob(
+                gt_infect[GT_STEPS_FOR_EXTRAPOLATION:].squeeze()
+            ).mean()
 
             # Accumulate losses
             total_mle_loss += mle_loss.item()
@@ -191,7 +206,7 @@ def test() -> None:
                 )
                 axes[row_idx, col_idx].set_xlabel("Date")
                 axes[row_idx, col_idx].set_ylabel("num_infect")
-            
+
     # Note down the test set loss
     loss_txt_filepath = plots_dir / f"{args.job_id}_test_loss.txt"
     avg_mle_loss = total_mle_loss / test_data.num_windows
