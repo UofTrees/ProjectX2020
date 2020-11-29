@@ -12,6 +12,7 @@ from mr_node.data import Data
 EXTRAPOLATION_WINDOW_LENGTH = 250
 GT_STEPS_FOR_EXTRAPOLATION = 100
 
+
 def get_indexes_to_keep(original_length: int, drop_rate: float):
     """
     Randomly sample `(1 - drop_rate) * original_length` indexes without replacement
@@ -24,7 +25,7 @@ def get_indexes_to_keep(original_length: int, drop_rate: float):
     return indexes_to_keep
 
 
-def extrapolate() -> None:
+def test() -> None:
 
     # Retrieve the job_id
     parser = argparse.ArgumentParser()
@@ -218,4 +219,4 @@ def extrapolate() -> None:
 
 
 if __name__ == "__main__":
-    extrapolate()
+    test()
