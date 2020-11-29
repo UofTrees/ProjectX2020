@@ -13,7 +13,7 @@ from utils import split_sequences, get_data, drop_and_inject_timediff
 
 EXTRAPOLATION_WINDOW_LENGTH = 250
 GT_STEPS_FOR_EXTRAPOLATION = 100
-NUM_WINDOWS = 21
+# NUM_WINDOWS = 21
 NUM_INFECT_INDEX = 3
 
 
@@ -49,11 +49,12 @@ def test() -> None:
     # Load the model to test
     model = torch.load(model_filepath, map_location=device)
 
-
+    # set NUM_WINDOWS
+    num_windows = len(X_test) // 250
 
     # Get all predictions and labels
     preds, labels = [], []
-    for j in range(0, 250 * NUM_WINDOWS, 250):
+    for j in range(0, 250 * num_windows, 250):
         extrapolation_data = X_test[ j+100 : j+250 ]
         test_seq = X_test[j:j+1]
 
@@ -87,7 +88,7 @@ def test() -> None:
     total_mse_loss = 0
     total_mle_loss = 0
 
-    for j in range(NUM_WINDOWS):
+    for j in range(num_windows):
         pred = torch.Tensor(preds[j])
         label = torch.Tensor(labels[j])
 
@@ -121,11 +122,15 @@ def test() -> None:
 
     # Note down the test set loss
     loss_txt_filepath = plots_dir / f"{args.job_id}_test_loss.txt"
-    avg_mle_loss = total_mle_loss / NUM_WINDOWS
-    avg_mse_loss = total_mse_loss / NUM_WINDOWS
+    avg_mle_loss = total_mle_loss / num_windows
+    avg_mse_loss = total_mse_loss / num_windows
     msg = f"Avg test MLE loss: {avg_mle_loss}\nAvg test MSE loss: {avg_mse_loss}\n"
     with open(loss_txt_filepath, "w") as f:
         f.writelines(msg)
+        f.write("\n\n")
+        for i in preds:
+            f.write(str(i))
+            f.write("\n\n")
     print(msg)
 
 
