@@ -38,14 +38,17 @@ class Data:
         window_length: int,
         batch_size: int,
     ) -> None:
-        if not data_path.exists():
-            raise ValueError(f"no such path {data_path}")
+        # if not data_path.exists():
+        #     raise ValueError(f"no such path {data_path}")
 
         self._device = device
         self._window_length = window_length
         self._batch_size = batch_size
-
-        self._data = pd.read_csv(data_path)
+        data_list = []
+        for file in data_path:
+            df = pd.read_csv(file, header=0, index_col=False)
+            data_list.append(df)
+        self._data = pd.concat(data_list, axis=0)
         self._data = self._parse_datetime(self._data)
 
         self.dates = self._data.date
@@ -143,14 +146,14 @@ class Data:
         return (
             torch.Tensor(
                 [
-                    data.RH,
-                    data.CM,
-                    data.CT,
+                    data.RH.values,
+                    data.CM.values,
+                    data.CT.values,
                 ]
             ).T.to(self._device),
             torch.Tensor(
                 [
-                    data.num_infect,
+                    data.num_infect.values,
                 ]
             ).T.to(self._device),
         )

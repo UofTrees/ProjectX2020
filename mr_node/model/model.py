@@ -1,10 +1,10 @@
 import torch
 import torchdiffeq
-from projectx.data import Data
-from projectx.hyperparams import Hyperparameters
-from projectx.model.decoder import Decoder
-from projectx.model.encoder import Encoder
-from projectx.model.odefunc import ODEFunc
+from mr_node.data import Data
+from mr_node.hyperparams import Hyperparameters
+from mr_node.model.decoder import Decoder
+from mr_node.model.encoder import Encoder
+from mr_node.model.odefunc import ODEFunc
 
 
 class Model(torch.nn.Module):

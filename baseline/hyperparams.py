@@ -5,7 +5,9 @@ from typing import List
 class Hyperparameters:
     lr: float
     batch_size: int
-    hidden_dims: int
-    variance: float
-    window_length: int
+    sequence_length: int
     num_epochs: int
+    n_hidden: int
+    input_size: int
+    variance: float
+    model_name: str

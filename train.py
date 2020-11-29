@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from projectx.data import Data
-from projectx.hyperparams import Hyperparameters
-from projectx.model import Model
+from mr_node.data import Data
+from mr_node.hyperparams import Hyperparameters
+from mr_node.model import Model
 
 # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 EXTRAPOLATION_WINDOW_LENGTH = 250
@@ -19,14 +19,14 @@ GT_STEPS_FOR_EXTRAPOLATION = 100
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--lr", default=1e-3, type=float)
+    parser.add_argument("--lr", default=3e-4, type=float)
     parser.add_argument("--dropout_rate", default=0.5, type=float)
     parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--hidden_dims", default=4, type=int)
-    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[32, 32], type=int)
+    parser.add_argument("--odefunc_fc_dims", nargs="+", default=[64, 64], type=int)
     parser.add_argument("--decoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--window_length", default=128, type=int)
-    parser.add_argument("--num_epochs", default=10, type=int)
+    parser.add_argument("--num_epochs", default=1, type=int)
     parser.add_argument("--rtol", default=1e-4, type=float)
     parser.add_argument("--atol", default=1e-6, type=float)
 
@@ -53,7 +53,8 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
 
 def get_job_id(hyperparams: Hyperparameters) -> str:
     return (
-        f"lr{hyperparams.lr:.1e}"
+        f"region3"
+        + f"lr{hyperparams.lr:.1e}"
         + f"_enc{hyperparams.encoder_fc_dims}"
         + f"_hidden{hyperparams.hidden_dims}"
         + f"_ode{hyperparams.odefunc_fc_dims}"
@@ -101,14 +102,18 @@ def train() -> None:
         log("Running on CPU")
 
     # Get the training and validation data
-    train_data_path = pathlib.Path("data/-83.812_10.39_train.csv").resolve()
+    train_data_path = [pathlib.Path("data/-83.812_10.39_train.csv").resolve(), 
+    pathlib.Path("data/73.125_18.8143_train.csv").resolve(),
+    pathlib.Path("data/126_7.5819_train.csv").resolve()]
     train_data = Data(
         data_path=train_data_path,
         device=device,
         window_length=hyperparams.window_length,
         batch_size=1,
     )
-    valid_data_path = pathlib.Path("data/-83.812_10.39_valid.csv").resolve()
+    valid_data_path = [pathlib.Path("data/-83.812_10.39_valid.csv").resolve(),
+    pathlib.Path("data/73.125_18.8143_valid.csv").resolve(),
+    pathlib.Path("data/126_7.5819_valid.csv").resolve()]
     valid_data = Data(
         data_path=valid_data_path,
         device=device,
@@ -216,7 +221,7 @@ def train() -> None:
     ###########################
 
     # Get data with the window length for extrapolation
-    test_data_path = pathlib.Path("data/-83.812_10.39_test.csv").resolve()
+    test_data_path = [pathlib.Path("data/-83.812_10.39_test.csv").resolve()]
     test_data = Data(
         data_path=test_data_path,
         device=device,
@@ -257,11 +262,11 @@ def train() -> None:
             # Denormalize using means and stds from TRAINING data
             pred_infect = infect_hat * train_data.infect_stds + train_data.infect_means
             gt_infect = (
-                gt_infect_window * train_data.infect_stds + train_data.infect_means
+                gt_infect_window * test_data.infect_stds + test_data.infect_means
             )
 
-            pred_infect = pred_infect.squeeze(-1).squeeze(-1).numpy()
-            gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
+            pred_infect = pred_infect.squeeze(-1).squeeze(-1).cpu().numpy()
+            gt_infect = gt_infect.squeeze(-1).squeeze(-1).cpu().numpy()
 
             # Plot predictions
             dates = test_data.dates[
@@ -288,7 +293,7 @@ def train() -> None:
     col_idx_final = (num_windows - 1) % side_len
     lines, labels = axes[row_idx_final, col_idx_final].get_legend_handles_labels()
     fig.legend(lines, labels, fontsize=40, loc="upper left")
-    extrapolation_plot_filepath = plots_dir / f"{args.job_id}.png"
+    extrapolation_plot_filepath = plots_dir / f"{job_id}.png"
     plt.savefig(extrapolation_plot_filepath)
 
     log("Done")
