@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from hyperparams import Hyperparameters
 from lstm import BaselineLSTM
 from rnn import BaselineRNN
-from utils import split_sequences, get_data
+from utils import split_sequences, get_data, drop_and_inject_timediff
 
 
 def parse_args() -> argparse.Namespace:
@@ -16,7 +16,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--lr", default=0.001, type=float)
     parser.add_argument("--batch_size", default=256, type=int)
-    parser.add_argument("--sequence_length", default=100, type=int)
+    parser.add_argument("--seq_len", default=70, type=int)
     parser.add_argument("--num_epochs", default=1, type=int)
     parser.add_argument("--n_hidden", default=20, type=int)
     parser.add_argument("--model_name", default='lstm', type=str)
@@ -28,20 +28,22 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
     return Hyperparameters(
         lr=args.lr,
         batch_size=args.batch_size,
-        sequence_length=args.sequence_length,
+        seq_len=args.seq_len,
+        num_gt=100,
         num_epochs=args.num_epochs,
         n_hidden=args.n_hidden,
         model_name=args.model_name,
-        input_size=4,
+        input_size=5,
         variance=0.1,
     )
 
 def get_job_id(hyperparams: Hyperparameters) -> str:
     return (
         f"{hyperparams.model_name}"
+        + f"_seq{hyperparams.seq_len}"
+        + f"_gt{hyperparams.num_gt}"
         + f"_lr{hyperparams.lr:.1e}"
         + f"_batch{hyperparams.batch_size}"
-        + f"_seq{hyperparams.sequence_length}"
         + f"_hidden{hyperparams.n_hidden}"
     )
 
@@ -76,20 +78,20 @@ def train(hyperparams: Hyperparameters) -> None:
         ]
 
     train_data = get_data(train_data_paths)
-    X_train, y_train = split_sequences(train_data, n_steps=hyperparams.sequence_length)
+    X_train, y_train = split_sequences(train_data, n_steps=hyperparams.num_gt)
 
     valid_data = get_data(valid_data_paths)
-    X_valid, y_valid = split_sequences(valid_data, n_steps=hyperparams.sequence_length)
+    X_valid, y_valid = split_sequences(valid_data, n_steps=hyperparams.num_gt)
 
 
     # Get the model
     if hyperparams.model_name == 'lstm':
         model = BaselineLSTM(hyperparams.input_size, 
-                             hyperparams.sequence_length, 
+                             hyperparams.seq_len, 
                              hyperparams.n_hidden)
     elif hyperparams.model_name == 'rnn':
         model = BaselineRNN(hyperparams.input_size, 
-                            hyperparams.sequence_length, 
+                            hyperparams.seq_len, 
                             hyperparams.n_hidden)
     else:
         raise AssertionError("model_name must be 'lstm' or 'rnn'")
@@ -120,6 +122,8 @@ def train(hyperparams: Hyperparameters) -> None:
                 x_batch = torch.from_numpy(inpt).float().to(device)
                 y_batch = torch.from_numpy(target).float()
 
+                x_batch = drop_and_inject_timediff(x_batch, model.seq_len)
+
                 model.init_hidden(x_batch.size(0), device)
                 output = model(x_batch)
 
@@ -144,6 +148,8 @@ def train(hyperparams: Hyperparameters) -> None:
 
                 x_batch = torch.from_numpy(test_seq).float().to(device)
                 y_batch = torch.from_numpy(label_seq).float()
+                
+                x_batch = drop_and_inject_timediff(x_batch, model.seq_len)
 
                 model.init_hidden(x_batch.size(0), device)
 
@@ -165,9 +171,9 @@ def train(hyperparams: Hyperparameters) -> None:
             print(f"Saving model at epoch {epoch:02d}\n")
             torch.save(model, model_filepath)
 
-        print(f"Step {epoch}: Train {avg_train_loss} | Valid {avg_valid_loss}")
+        print(f"Epoch {epoch}: Train {avg_train_loss} | Valid {avg_valid_loss}")
 
-    updates = [i for i in range(1, len(all_train_loss) + 1)]
+    updates = range(hyperparams.num_epochs)
     plt.plot(updates, all_train_loss, label="Training loss")
     plt.plot(updates, all_val_loss, label="Validation loss")
     plt.title("Loss curve")

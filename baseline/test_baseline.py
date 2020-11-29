@@ -8,12 +8,13 @@ import torch
 
 from lstm import BaselineLSTM
 from rnn import BaselineRNN
-from utils import split_sequences, get_data
+from utils import split_sequences, get_data, drop_and_inject_timediff
 
 
 EXTRAPOLATION_WINDOW_LENGTH = 250
 GT_STEPS_FOR_EXTRAPOLATION = 100
 NUM_WINDOWS = 21
+NUM_INFECT_INDEX = 3
 
 
 def test() -> None:
@@ -22,7 +23,7 @@ def test() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--job_id",
-        default="rnn_lr1.0e-03_batch256_seq100_hidden20",
+        default="lstm_seq70_gt100_lr1.0e-03_batch256_hidden20",
         type=str,
     )
     args = parser.parse_args()
@@ -60,17 +61,18 @@ def test() -> None:
         with torch.no_grad():
             for i in range(150):
                 x_batch = torch.from_numpy(test_seq).float().to(device)
+                x_batch = drop_and_inject_timediff(x_batch, model.seq_len)
                 model.init_hidden(x_batch.size(0), device)
                 output = model(x_batch)
                 t = output.cpu().view(-1).numpy()[0]
 
                 # Produce output of the extrapolation
                 pred.append(t)
-                label.append(extrapolation_data[i][0][3])
+                label.append(extrapolation_data[i][0][NUM_INFECT_INDEX])
 
                 # Update test seq
                 np_to_add = extrapolation_data[i][0]
-                np_to_add[-1] = t
+                np_to_add[NUM_INFECT_INDEX] = t
 
                 arr = test_seq.tolist()
                 del arr[0][0]
