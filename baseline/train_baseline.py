@@ -17,7 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", default=0.001, type=float)
     parser.add_argument("--batch_size", default=256, type=int)
     parser.add_argument("--seq_len", default=70, type=int)
-    parser.add_argument("--num_epochs", default=1, type=int)
+    parser.add_argument("--num_epochs", default=200, type=int)
     parser.add_argument("--n_hidden", default=20, type=int)
     parser.add_argument("--model_name", default='lstm', type=str)
 
@@ -67,13 +67,13 @@ def train(hyperparams: Hyperparameters) -> None:
     # Get the data
     train_data_paths = [
         pathlib.Path("../data/-83.812_10.39_train.csv").resolve(),
-        #pathlib.Path("../data/73.125_18.8143_train.csv").resolve(),
+        pathlib.Path("../data/73.125_18.8143_train.csv").resolve(),
         #pathlib.Path("../data/126_7.5819_train.csv").resolve()
         ]
 
     valid_data_paths = [
         pathlib.Path("../data/-83.812_10.39_valid.csv").resolve(),
-        #pathlib.Path("../data/73.125_18.8143_valid.csv").resolve(),
+        pathlib.Path("../data/73.125_18.8143_valid.csv").resolve(),
         #pathlib.Path("../data/126_7.5819_valid.csv").resolve()
         ]
 
