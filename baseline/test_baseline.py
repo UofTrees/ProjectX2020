@@ -1,3 +1,6 @@
+import argparse
+import pathlib
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -5,34 +8,54 @@ import torch
 
 from lstm import BaselineLSTM
 from rnn import BaselineRNN
-from utils import split_sequences
+from utils import split_sequences, get_data
 
 
-def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1, n_hidden=20):
+EXTRAPOLATION_WINDOW_LENGTH = 250
+GT_STEPS_FOR_EXTRAPOLATION = 100
+NUM_WINDOWS = 21
 
+
+def test() -> None:
+    
+    # Retrieve the job_id
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--job_id",
+        default="rnn_lr1.0e-03_batch256_seq100_hidden20",
+        type=str,
+    )
+    args = parser.parse_args()
+
+    # Get all folders and files
+    root = pathlib.Path("baseline_results").resolve()
+    models_dir = root / "models"
+    plots_dir = root / "plots"
+    model_filepath = models_dir / f"{args.job_id}.pt"
+
+    # Get device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Get the data
+    test_data_paths = [
+        pathlib.Path("../data/-83.812_10.39_test.csv").resolve(), 
+        #pathlib.Path("../data/73.125_18.8143_test.csv").resolve(),
+        #pathlib.Path("../data/126_7.5819_test.csv").resolve()
+        ]
+    test_data = get_data(test_data_paths)
+    X_test, y_test = split_sequences(test_data, n_steps=GT_STEPS_FOR_EXTRAPOLATION)
 
-    df = pd.read_csv(path)
-    del df['date']
-    sq = df.to_numpy()
-    X, _ = split_sequences(sq, n_steps=n_timesteps)
-
-    if model_name == 'lstm':
-        model = BaselineLSTM(n_features, n_timesteps, n_hidden)
-    elif model_name == 'rnn':
-        model = BaselineRNN(n_features, n_timesteps, n_hidden)
+    # Load the model to test
+    model = torch.load(model_filepath, map_location=device)
+    
 
 
-    model.load_state_dict(torch.load(pt_path))
-    model.to(device)
-
+    # Get all predictions and labels
     preds, labels = [], []
+    for j in range(0, 250 * NUM_WINDOWS, 250):
+        extrapolation_data = X_test[ j+100 : j+250 ]
+        test_seq = X_test[j:j+1]
 
-    # for j in range(0, len(X)-(len(X)%250)-1, 250):
-    for j in range(0, 250*21, 250):
-        X_trapolate = X[j+100:j+250]
-        test_seq = X[j:j+1]
         pred, label = [], []
         with torch.no_grad():
             for i in range(150):
@@ -43,10 +66,10 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1,
 
                 # Produce output of the extrapolation
                 pred.append(t)
-                label.append(X_trapolate[i][0][3])
+                label.append(extrapolation_data[i][0][3])
 
                 # Update test seq
-                np_to_add = X_trapolate[i][0]
+                np_to_add = extrapolation_data[i][0]
                 np_to_add[-1] = t
 
                 arr = test_seq.tolist()
@@ -57,29 +80,49 @@ def extrapolate(pt_path, path, n_features = 4,n_timesteps = 100, batch_size = 1,
         preds.append(pred)
         labels.append(label)
 
-    # Visualize preds vs labels
-    # Also calculate average MSE loss per window
-    losses = 0
-    for j in range(21):
-        # computing MSE loss
-        pred = preds[j]
-        label = labels[j]
-        losses += np.mean(np.square(np.array(pred)-np.array(label)))
+    # Plot preds vs labels and find average MLE and MSE loss per window
+    mse = torch.nn.MSELoss()
+    total_mse_loss = 0
+    total_mle_loss = 0
+
+    for j in range(NUM_WINDOWS):
+        pred = torch.Tensor(preds[j])
+        label = torch.Tensor(labels[j])
+
+        # Find losses and accumulate them
+        mse_loss = mse(pred, label)
+        infect_dist = torch.distributions.normal.Normal(
+            pred, 0.1
+        )
+        mle_loss = -infect_dist.log_prob(label).mean()
+        
+        total_mle_loss += mle_loss.item()
+        total_mse_loss += mse_loss.item()
 
         # plotting
-        updates = [i for i in range(1, 151)]
+        updates = range(150)
         plt.figure(figsize=(20, 10))
         plt.plot(updates, pred, label="Prediction")
-        plt.plot(updates, label, label="Groud Truth")
-        plt.title("LSTM: Prediction vs Groud Truth")
+        plt.plot(updates, label, label="Ground Truth")
+        plt.title("LSTM: Prediction vs Ground Truth")
         plt.xlabel("Step")
         plt.ylabel("num_infect")
         plt.legend()
-        # plt.show()
-        plt.savefig(f"./lstm_pred_vs_gt_{j}.jpg")
-    print(f"LSTM: average MSE Loss per window: {losses / 21}")
+        individual_extrapolation_plot_filepath = (
+            plots_dir / f"{args.job_id}_{j}.png"
+        )
+        plt.savefig(individual_extrapolation_plot_filepath)
+
+
+    # Note down the test set loss
+    loss_txt_filepath = plots_dir / f"{args.job_id}_test_loss.txt"
+    avg_mle_loss = total_mle_loss / NUM_WINDOWS
+    avg_mse_loss = total_mse_loss / NUM_WINDOWS
+    msg = f"Avg test MLE loss: {avg_mle_loss}\nAvg test MSE loss: {avg_mse_loss}\n"
+    with open(loss_txt_filepath, "w") as f:
+        f.writelines(msg)
+    print(msg)
 
 
 if __name__ == "__main__":
-    # eval(pt_path = '', path = '')
-    extrapolate(pt_path="./lstm_state_dict.pt", path="./-83.812_10.39_test.csv")
+    test()

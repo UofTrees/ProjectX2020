@@ -45,7 +45,7 @@ def get_job_id(hyperparams: Hyperparameters) -> str:
         + f"_hidden{hyperparams.n_hidden}"
     )
 
-def train(hyperparams: Hyperparameters):
+def train(hyperparams: Hyperparameters) -> None:
 
     root = pathlib.Path("baseline_results").resolve()
     if not root.exists():
@@ -106,7 +106,7 @@ def train(hyperparams: Hyperparameters):
     num_batches_train = len(X_train) // batch_size
     num_batches_valid = len(X_valid) // batch_size
 
-    for t in range(hyperparams.num_epochs):
+    for epoch in range(hyperparams.num_epochs):
         train_loss = 0
         for b in range(0, len(X_train), batch_size):
 
@@ -161,11 +161,11 @@ def train(hyperparams: Hyperparameters):
         all_val_loss.append(avg_valid_loss)
 
         if best_valid_loss is None or avg_valid_loss < best_valid_loss:
-            torch.save(model.state_dict(), model_filepath)
             best_valid_loss = avg_valid_loss
+            print(f"Saving model at epoch {epoch:02d}\n")
+            torch.save(model, model_filepath)
 
-        print("step : ", t, "training loss : ", avg_train_loss)
-        print("step : ", t, "validation loss : ", avg_valid_loss)
+        print(f"Step {epoch}: Train {avg_train_loss} | Valid {avg_valid_loss}")
 
     updates = [i for i in range(1, len(all_train_loss) + 1)]
     plt.plot(updates, all_train_loss, label="Training loss")
