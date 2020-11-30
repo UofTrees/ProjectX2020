@@ -38,7 +38,7 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
         n_hidden=args.n_hidden,
         model_name=args.model_name,
         input_size=5,
-        variance=0.1,
+        std=0.1,
     )
 
 
@@ -76,16 +76,24 @@ def train(hyperparams: Hyperparameters) -> None:
 
     # Get the data
     region_coords = get_region_coords(hyperparams.region)
-    train_data_path, valid_data_path = [], []
+    X_train_list, y_train_list = [], []
+    X_valid_list, y_valid_list = [], []
+
     for coord in region_coords:
-        train_data_path.append(pathlib.Path(f"../data/{coord}_train.csv").resolve())
-        valid_data_path.append(pathlib.Path(f"../data/{coord}_valid.csv").resolve())
+        train_path = [pathlib.Path(f"../data/{coord}_train.csv").resolve()]
+        valid_path = [pathlib.Path(f"../data/{coord}_valid.csv").resolve()]
 
-    train_data = get_data(train_data_path)
-    X_train, y_train = split_sequences(train_data, n_steps=hyperparams.num_gt)
+        train_data = get_data(train_path)
+        X_train, y_train = split_sequences(train_data, n_steps=hyperparams.num_gt)
+        
+        valid_data = get_data(valid_path)
+        X_valid, y_valid = split_sequences(valid_data, n_steps=hyperparams.num_gt)
 
-    valid_data = get_data(valid_data_path)
-    X_valid, y_valid = split_sequences(valid_data, n_steps=hyperparams.num_gt)
+        X_train_list.append(X_train)
+        y_train_list.append(y_train)
+
+        X_valid_list.append(X_valid)
+        y_valid_list.append(y_valid)
 
     # Get the model
     if hyperparams.model_name.lower() == "lstm":
@@ -107,63 +115,66 @@ def train(hyperparams: Hyperparameters) -> None:
     batch_size = hyperparams.batch_size
     best_valid_loss = None
     all_train_loss, all_val_loss = [], []
-    num_batches_train = len(X_train) // batch_size
-    num_batches_valid = len(X_valid) // batch_size
+    num_batches_train = sum([len(X_train) for X_train in X_train_list]) // batch_size
+    num_batches_valid = sum([len(X_valid) for X_valid in X_valid_list]) // batch_size
 
     for epoch in range(hyperparams.num_epochs):
         train_loss = 0
-        for b in range(0, len(X_train), batch_size):
+        for X_train, y_train in zip(X_train_list, y_train_list):
+            for b in range(0, len(X_train), batch_size):
 
-            if b + batch_size > len(X_train):
-                break
+                if b + batch_size > len(X_train):
+                    break
 
-            inpt = X_train[b : b + batch_size, :, :]
-            target = y_train[b : b + batch_size]
+                inpt = X_train[b : b + batch_size, :, :]
+                target = y_train[b : b + batch_size]
 
-            if target.shape[0] != 0:
-                x_batch = torch.from_numpy(inpt).float().to(device)
-                y_batch = torch.from_numpy(target).float()
+                if target.shape[0] != 0:
+                    x_batch = torch.from_numpy(inpt).float().to(device)
+                    y_batch = torch.from_numpy(target).float()
 
-                x_batch = drop_and_inject_timediff(x_batch, model.seq_len)
+                    x_batch = drop_and_inject_timediff(x_batch, model.seq_len)
 
-                model.init_hidden(x_batch.size(0), device)
-                output = model(x_batch)
+                    model.init_hidden(x_batch.size(0), device)
+                    output = model(x_batch)
 
-                infect_dist = torch.distributions.normal.Normal(
-                    y_batch, hyperparams.variance
-                )
-                loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
+                    infect_dist = torch.distributions.normal.Normal(
+                        y_batch, hyperparams.std
+                    )
+                    loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
 
-                loss.backward()
-                optimizer.step()
-                optimizer.zero_grad()
-                train_loss += loss.item()
+                    loss.backward()
+                    optimizer.step()
+                    optimizer.zero_grad()
+                    train_loss += loss.item()
 
         # validation
         valid_loss = 0
         with torch.no_grad():
-            for b in range(0, len(X_valid), batch_size):
+            
+            for X_valid, y_valid in zip(X_valid_list, y_valid_list):
+                for b in range(0, len(X_valid), batch_size):
 
-                if b + batch_size > len(X_valid):
-                    break
+                    if b + batch_size > len(X_valid):
+                        break
 
-                test_seq = X_valid[b : b + batch_size, :, :]
-                label_seq = y_valid[b : b + batch_size]
+                    test_seq = X_valid[b : b + batch_size, :, :]
+                    label_seq = y_valid[b : b + batch_size]
 
-                x_batch = torch.from_numpy(test_seq).float().to(device)
-                y_batch = torch.from_numpy(label_seq).float()
+                    x_batch = torch.from_numpy(test_seq).float().to(device)
+                    y_batch = torch.from_numpy(label_seq).float()
 
-                x_batch = drop_and_inject_timediff(x_batch, model.seq_len)
+                    x_batch = drop_and_inject_timediff(x_batch, model.seq_len)
 
-                model.init_hidden(x_batch.size(0), device)
+                    model.init_hidden(x_batch.size(0), device)
 
-                output = model(x_batch)
-                infect_dist = torch.distributions.normal.Normal(
-                    y_batch, hyperparams.variance
-                )
-                loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
+                    output = model(x_batch)
+                    infect_dist = torch.distributions.normal.Normal(
+                        y_batch, hyperparams.std
+                    )
+                    loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
 
-                valid_loss += loss.item()
+                    valid_loss += loss.item()
 
         # compute train and validation loss per epoch
         avg_train_loss = train_loss / num_batches_train
@@ -172,12 +183,12 @@ def train(hyperparams: Hyperparameters) -> None:
         all_train_loss.append(avg_train_loss)
         all_val_loss.append(avg_valid_loss)
 
+        print(f"Epoch {epoch}: Train {avg_train_loss} | Valid {avg_valid_loss}")
         if best_valid_loss is None or avg_valid_loss < best_valid_loss:
             best_valid_loss = avg_valid_loss
             print(f"Saving model at epoch {epoch:02d}\n")
             torch.save(model, model_filepath)
 
-        print(f"Epoch {epoch}: Train {avg_train_loss} | Valid {avg_valid_loss}")
 
     updates = range(hyperparams.num_epochs)
     plt.plot(updates, all_train_loss, label="Training loss")

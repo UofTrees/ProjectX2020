@@ -13,4 +13,4 @@ class Hyperparameters:
     n_hidden: int
     model_name: str
     input_size: int
-    variance: float
+    std: float
