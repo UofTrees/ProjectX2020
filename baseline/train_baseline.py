@@ -38,7 +38,7 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
         n_hidden=args.n_hidden,
         model_name=args.model_name,
         input_size=5,
-        std=0.5,
+        std=0.1,
     )
 
 
@@ -85,7 +85,7 @@ def train(hyperparams: Hyperparameters) -> None:
 
         train_data = get_data(train_path)
         X_train, y_train = split_sequences(train_data, n_steps=hyperparams.num_gt)
-        
+
         valid_data = get_data(valid_path)
         X_valid, y_valid = split_sequences(valid_data, n_steps=hyperparams.num_gt)
 
@@ -151,7 +151,7 @@ def train(hyperparams: Hyperparameters) -> None:
         # validation
         valid_loss = 0
         with torch.no_grad():
-            
+
             for X_valid, y_valid in zip(X_valid_list, y_valid_list):
                 for b in range(0, len(X_valid), batch_size):
 
@@ -188,7 +188,6 @@ def train(hyperparams: Hyperparameters) -> None:
             best_valid_loss = avg_valid_loss
             print(f"Saving model at epoch {epoch:02d}\n")
             torch.save(model, model_filepath)
-
 
     updates = range(hyperparams.num_epochs)
     plt.plot(updates, all_train_loss, label="Training loss")

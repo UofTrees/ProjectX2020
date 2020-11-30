@@ -95,7 +95,7 @@ def test() -> None:
 
         # Find losses and accumulate them
         mse_loss = mse(pred, label)
-        infect_dist = torch.distributions.normal.Normal(pred, 0.5)
+        infect_dist = torch.distributions.normal.Normal(pred, 0.1)
         mle_loss = -infect_dist.log_prob(label).mean()
 
         total_mle_loss += mle_loss.item()
