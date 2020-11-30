@@ -71,7 +71,7 @@ Keyword arguments:
 
 # Baseline RNN and LSTM
 ## Training
-You may use the following command to train the baseline RNN or LSTM models. The results can be found in `/baseline/baseline_results`.
+You may use the following command to train the baseline RNN or LSTM model. The results can be found in `/baseline/baseline_results`.
 ```shell
 $ cd baseline
 $ python train_baseline.py --region=cr --lr=0.001 --batch_size=256 --seq_len=100 --num_epochs=1 --n_hidden=20 --model_name=lstm
@@ -97,5 +97,5 @@ Keyword arguments:
 - `job_id`: Job id of the model to test. Default: `cr_lstm_lr1.0e-03_batch256_seq100_epochs1_hidden20`
 
 # References
-[1] Ricky T. Q. Chen, Yulia Rubanova, Jesse Bettencourt, and David Duvenaud. Neural Ordinary Differential Equations. 2018. https://arxiv.org/abs/1806.07366.\
+[1] Ricky T. Q. Chen, Yulia Rubanova, Jesse Bettencourt, and David Duvenaud. Neural Ordinary Differential Equations. 2018. https://arxiv.org/abs/1806.07366. <br/>
 [2] Daniel P. Bebber.  Climate change effects on Black Sigatoka disease of banana. May 2019. https://doi.org/10.1098/rstb.2018.0269.

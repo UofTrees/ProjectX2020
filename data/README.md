@@ -14,5 +14,5 @@ Due to time constraints, we ran our experiments based on data from Costa Rica `(
 | Davao, Philippine  | 7.5819   | 126       |
 
 # References
-[1] Ricky T. Q. Chen, Yulia Rubanova, Jesse Bettencourt, and David Duvenaud. Neural Ordinary Differential Equations. 2018. https://arxiv.org/abs/1806.07366.\
+[1] Ricky T. Q. Chen, Yulia Rubanova, Jesse Bettencourt, and David Duvenaud. Neural Ordinary Differential Equations. 2018. https://arxiv.org/abs/1806.07366. <br/>
 [2] Daniel P. Bebber.  Climate change effects on Black Sigatoka disease of banana. May 2019. https://doi.org/10.1098/rstb.2018.0269.
