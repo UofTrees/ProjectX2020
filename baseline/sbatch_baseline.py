@@ -26,8 +26,6 @@ num_epochs_list = [100]
 n_hidden_list = [64]
 model_list = ['lstm', 'rnn']
 
-'python train_baseline.py --region=cr --lr=0.001 --batch_size=256 --seq_len=100 --num_epochs=1 --n_hidden=20 --model_name=lstm'
-
 # For each hyperparam combination, create an sbatch file to run
 with open("train_all.sh", "w") as allf:
 
@@ -41,7 +39,7 @@ with open("train_all.sh", "w") as allf:
 
                                 job = (
                                     f"{region}"
-                                    + f"_model{model}"
+                                    + f"_{model}"
                                     + f"_lr{lr:.1e}"
                                     + f"_batch{batch_size}"
                                     + f"_seq{seq_len}"

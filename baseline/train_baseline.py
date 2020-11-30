@@ -38,7 +38,7 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
         n_hidden=args.n_hidden,
         model_name=args.model_name,
         input_size=5,
-        std=0.1,
+        std=0.5,
     )
 
 

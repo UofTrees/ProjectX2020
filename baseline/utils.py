@@ -63,7 +63,7 @@ def get_region_coords(region: str):
     elif region.lower() == "in":
         region_coords = ["73.125_18.8143"]
     elif region.lower() == "crin":
-        region_coords = ["-83.812_10.39", "73.125_18.8143"]
+        region_coords = ["73.125_18.8143", "-83.812_10.39"]
     else:
         raise AssertionError("--region must be 'cr', 'in' or 'crin'")
 
