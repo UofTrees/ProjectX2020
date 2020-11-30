@@ -12,7 +12,7 @@ This is the submission of the University of Toronto team to [ProjectX 2020](http
 └── data              # Time series data for 7 regions. We use only 2 of them: Costa Rica and India.
 ```
 
-![Sample extrapolation result](/images/CR_100_2_cropped.png)
+![Sample extrapolation result](/images/result2.png)
 
 # Data
 We have collected microclimatic data from 7 regions of the world known for having vast banana plantations and synthesized the corresponding infection risk variable via a probabilistic survival process inspired by [2].
