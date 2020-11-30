@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from typing import List
 
+
 @dataclass
 class Hyperparameters:
+    region: str
     lr: float
     batch_size: int
     seq_len: int

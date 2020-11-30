@@ -11,7 +11,7 @@ def split_sequences(seq, n_steps):
         seq_x, seq_y = seq[i : (i + n_steps), :], seq[i + n_steps, 3]
 
         # Add normalized time steps
-        time_steps = np.arange(i, i+n_steps) / highest_time_step
+        time_steps = np.arange(i, i + n_steps) / highest_time_step
         time_steps = np.expand_dims(time_steps, axis=1)
         seq_x = np.concatenate((seq_x, time_steps), axis=1)
 
@@ -40,14 +40,14 @@ def drop_and_inject_timediff(x_batch: torch.Tensor, seq_len: int) -> torch.Tenso
 
     # Find which time steps to keep
     original_length = x_batch.shape[1]
-    indexes_to_keep = sorted(np.random.choice(
-        original_length, seq_len, replace=False
-    ))
+    indexes_to_keep = sorted(np.random.choice(original_length, seq_len, replace=False))
     smaller_x_batch = x_batch[:, indexes_to_keep, :]
 
     # For each batch, get the time difference between adjacent time steps
     remaining_time_steps = smaller_x_batch[:, :, 4]
-    time_differences_from_2nd_step = remaining_time_steps[:, 1:] - remaining_time_steps[:, :-1]
+    time_differences_from_2nd_step = (
+        remaining_time_steps[:, 1:] - remaining_time_steps[:, :-1]
+    )
     time_differences = torch.zeros_like(remaining_time_steps)
     time_differences[:, 1:] = time_differences_from_2nd_step
 
@@ -55,3 +55,16 @@ def drop_and_inject_timediff(x_batch: torch.Tensor, seq_len: int) -> torch.Tenso
     smaller_x_batch[:, :, 4] = time_differences
 
     return smaller_x_batch
+
+
+def get_region_coords(region: str):
+    if region.lower() == "cr":
+        region_coords = ["-83.812_10.39"]
+    elif region.lower() == "in":
+        region_coords = ["73.125_18.8143"]
+    elif region.lower() == "crin":
+        region_coords = ["-83.812_10.39", "73.125_18.8143"]
+    else:
+        raise AssertionError("--region must be 'cr', 'in' or 'crin'")
+
+    return region_coords

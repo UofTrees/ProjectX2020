@@ -59,7 +59,9 @@ def test() -> None:
     args = parser.parse_args()
 
     if args.num_to_keep > GT_STEPS_FOR_EXTRAPOLATION or args.num_to_keep < 0:
-        raise AssertionError("--num_to_keep must be positive and no greater than 100")
+        raise AssertionError(
+            "--num_to_keep must a positive integer no greater than 100"
+        )
 
     # Get all folders and files
     root = pathlib.Path("results").resolve()

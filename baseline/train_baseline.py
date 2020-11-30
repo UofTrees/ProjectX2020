@@ -8,28 +8,32 @@ import matplotlib.pyplot as plt
 from hyperparams import Hyperparameters
 from lstm import BaselineLSTM
 from rnn import BaselineRNN
-from utils import split_sequences, get_data, drop_and_inject_timediff
+from utils import split_sequences, get_data, drop_and_inject_timediff, get_region_coords
+
+GT_STEPS_FOR_EXTRAPOLATION = 100
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--region", default="cr", type=str)
     parser.add_argument("--lr", default=0.001, type=float)
     parser.add_argument("--batch_size", default=256, type=int)
-    parser.add_argument("--seq_len", default=70, type=int)
-    parser.add_argument("--num_epochs", default=200, type=int)
+    parser.add_argument("--seq_len", default=100, type=int)
+    parser.add_argument("--num_epochs", default=1, type=int)
     parser.add_argument("--n_hidden", default=20, type=int)
-    parser.add_argument("--model_name", default='lstm', type=str)
+    parser.add_argument("--model_name", default="lstm", type=str)
 
     return parser.parse_args()
 
 
 def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
     return Hyperparameters(
+        region=args.region,
         lr=args.lr,
         batch_size=args.batch_size,
         seq_len=args.seq_len,
-        num_gt=100,
+        num_gt=GT_STEPS_FOR_EXTRAPOLATION,
         num_epochs=args.num_epochs,
         n_hidden=args.n_hidden,
         model_name=args.model_name,
@@ -37,17 +41,23 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
         variance=0.1,
     )
 
+
 def get_job_id(hyperparams: Hyperparameters) -> str:
     return (
-        f"{hyperparams.model_name}"
-        + f"_seq{hyperparams.seq_len}"
-        + f"_gt{hyperparams.num_gt}"
+        f"{hyperparams.region}"
+        + f"_{hyperparams.model_name}"
         + f"_lr{hyperparams.lr:.1e}"
         + f"_batch{hyperparams.batch_size}"
+        + f"_seq{hyperparams.seq_len}"
+        + f"_epochs{hyperparams.num_epochs}"
         + f"_hidden{hyperparams.n_hidden}"
     )
 
+
 def train(hyperparams: Hyperparameters) -> None:
+
+    if hyperparams.seq_len > GT_STEPS_FOR_EXTRAPOLATION or hyperparams.seq_len < 0:
+        raise AssertionError("--seq_len must a positive integer no greater than 100")
 
     root = pathlib.Path("baseline_results").resolve()
     if not root.exists():
@@ -65,40 +75,32 @@ def train(hyperparams: Hyperparameters) -> None:
     loss_plot_filepath = plots_dir / f"{job_id}_loss.png"
 
     # Get the data
-    train_data_paths = [
-        pathlib.Path("../data/-83.812_10.39_train.csv").resolve(),
-        pathlib.Path("../data/73.125_18.8143_train.csv").resolve(),
-        #pathlib.Path("../data/126_7.5819_train.csv").resolve()
-        ]
+    region_coords = get_region_coords(hyperparams.region)
+    train_data_path, valid_data_path = [], []
+    for coord in region_coords:
+        train_data_path.append(pathlib.Path(f"../data/{coord}_train.csv").resolve())
+        valid_data_path.append(pathlib.Path(f"../data/{coord}_valid.csv").resolve())
 
-    valid_data_paths = [
-        pathlib.Path("../data/-83.812_10.39_valid.csv").resolve(),
-        pathlib.Path("../data/73.125_18.8143_valid.csv").resolve(),
-        #pathlib.Path("../data/126_7.5819_valid.csv").resolve()
-        ]
-
-    train_data = get_data(train_data_paths)
+    train_data = get_data(train_data_path)
     X_train, y_train = split_sequences(train_data, n_steps=hyperparams.num_gt)
 
-    valid_data = get_data(valid_data_paths)
+    valid_data = get_data(valid_data_path)
     X_valid, y_valid = split_sequences(valid_data, n_steps=hyperparams.num_gt)
 
-
     # Get the model
-    if hyperparams.model_name == 'lstm':
-        model = BaselineLSTM(hyperparams.input_size, 
-                             hyperparams.seq_len, 
-                             hyperparams.n_hidden)
-    elif hyperparams.model_name == 'rnn':
-        model = BaselineRNN(hyperparams.input_size, 
-                            hyperparams.seq_len, 
-                            hyperparams.n_hidden)
+    if hyperparams.model_name.lower() == "lstm":
+        model = BaselineLSTM(
+            hyperparams.input_size, hyperparams.seq_len, hyperparams.n_hidden
+        )
+    elif hyperparams.model_name.lower() == "rnn":
+        model = BaselineRNN(
+            hyperparams.input_size, hyperparams.seq_len, hyperparams.n_hidden
+        )
     else:
         raise AssertionError("model_name must be 'lstm' or 'rnn'")
     optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams.lr)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-
 
     # Train
     model.train()
@@ -127,7 +129,9 @@ def train(hyperparams: Hyperparameters) -> None:
                 model.init_hidden(x_batch.size(0), device)
                 output = model(x_batch)
 
-                infect_dist = torch.distributions.normal.Normal(y_batch, hyperparams.variance)
+                infect_dist = torch.distributions.normal.Normal(
+                    y_batch, hyperparams.variance
+                )
                 loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
 
                 loss.backward()
@@ -148,13 +152,15 @@ def train(hyperparams: Hyperparameters) -> None:
 
                 x_batch = torch.from_numpy(test_seq).float().to(device)
                 y_batch = torch.from_numpy(label_seq).float()
-                
+
                 x_batch = drop_and_inject_timediff(x_batch, model.seq_len)
 
                 model.init_hidden(x_batch.size(0), device)
 
                 output = model(x_batch)
-                infect_dist = torch.distributions.normal.Normal(y_batch, hyperparams.variance)
+                infect_dist = torch.distributions.normal.Normal(
+                    y_batch, hyperparams.variance
+                )
                 loss = -infect_dist.log_prob(output.squeeze().cpu()).mean()
 
                 valid_loss += loss.item()
