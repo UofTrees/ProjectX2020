@@ -9,7 +9,7 @@ This is the submission of the University of Toronto team to [ProjectX 2020](http
 ├── mr_node           # Data structures for MR. NODE
 ├── train.py          # Training script for MR. NODE
 ├── test.py           # Testing script for MR. NODE 
-└── data              # Time series data for 7 regions. We use only 2 of them: Costa Rica and India.
+└── data              # Time series data for Costa Rica and India.
 ```
 
 ![Sample extrapolation result](/images/result2.png)
