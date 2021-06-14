@@ -16,6 +16,9 @@ from mr_node.utils import get_region_coords
 EXTRAPOLATION_WINDOW_LENGTH = 250
 GT_STEPS_FOR_EXTRAPOLATION = 100
 
+DATA_PATH = "data"
+RESULTS_PATH = "results"
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -76,17 +79,17 @@ def train() -> None:
     job_id = get_job_id(hyperparams)
 
     # Generate folders where to save results (logs, models and plots)
-    root = pathlib.Path("results").resolve()
-    if not root.exists():
-        root.mkdir()
+    results_root = pathlib.Path(RESULTS_PATH).resolve()
+    if not results_root.exists():
+        results_root.mkdir()
 
-    logs_dir = root / "logs"
+    logs_dir = results_root / "logs"
     if not logs_dir.exists():
         logs_dir.mkdir()
-    models_dir = root / "models"
+    models_dir = results_root / "models"
     if not models_dir.exists():
         models_dir.mkdir()
-    plots_dir = root / "plots"
+    plots_dir = results_root / "plots"
     if not plots_dir.exists():
         plots_dir.mkdir()
 
@@ -110,8 +113,8 @@ def train() -> None:
     region_coords = get_region_coords(hyperparams.region)
     train_data_path, valid_data_path = [], []
     for coord in region_coords:
-        train_data_path.append(pathlib.Path(f"data/{coord}_train.csv").resolve())
-        valid_data_path.append(pathlib.Path(f"data/{coord}_valid.csv").resolve())
+        train_data_path.append(pathlib.Path(f"{DATA_PATH}/{coord}_train.csv").resolve())
+        valid_data_path.append(pathlib.Path(f"{DATA_PATH}/{coord}_valid.csv").resolve())
 
     train_data = Data(
         data_path=train_data_path,
