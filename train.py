@@ -21,6 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--region", default="cr", type=str)
+    parser.add_argument("--solver", default="euler", type=str)
     parser.add_argument("--lr", default=3e-4, type=float)
     parser.add_argument("--encoder_fc_dims", nargs="+", default=[8, 16, 8], type=int)
     parser.add_argument("--hidden_dims", default=4, type=int)
@@ -37,6 +38,7 @@ def parse_args() -> argparse.Namespace:
 def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
     return Hyperparameters(
         region=args.region,
+        solver=args.solver,
         lr=args.lr,
         dropout_rate=0.5,
         input_dims=4,
@@ -56,6 +58,7 @@ def get_hyperparameters(args: argparse.Namespace) -> Hyperparameters:
 def get_job_id(hyperparams: Hyperparameters) -> str:
     return (
         f"{hyperparams.region}"
+        + f"_{hyperparams.solver}"
         + f"_lr{hyperparams.lr:.1e}"
         + f"_enc{hyperparams.encoder_fc_dims}"
         + f"_hidden{hyperparams.hidden_dims}"

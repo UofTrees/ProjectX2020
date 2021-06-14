@@ -43,7 +43,7 @@ def test() -> None:
     parser.add_argument("--region", default="cr", type=str)
     parser.add_argument(
         "--job_id",
-        default="cr_lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[64, 64]_window128_epochs1_rtol0.0001_atol1e-06",
+        default="cr_euler_lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[64, 64]_window128_epochs1_rtol0.0001_atol1e-06",
         type=str,
     )
     parser.add_argument(

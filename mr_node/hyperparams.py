@@ -5,6 +5,7 @@ from typing import List
 @dataclass
 class Hyperparameters:
     region: str
+    solver: str
     lr: float
     dropout_rate: float
     input_dims: int
