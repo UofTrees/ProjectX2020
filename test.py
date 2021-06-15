@@ -58,7 +58,9 @@ def test() -> None:
     )
     args = parser.parse_args()
 
-    if args.num_to_keep > GT_STEPS_FOR_EXTRAPOLATION or args.num_to_keep < 0:
+    region, job_id, plot_indiv, num_to_keep = args.region, args.job_id, args.plot_indiv, args.num_to_keep
+
+    if num_to_keep > GT_STEPS_FOR_EXTRAPOLATION or num_to_keep < 0:
         raise AssertionError(
             "--num_to_keep must a positive integer no greater than 100"
         )
@@ -68,7 +70,7 @@ def test() -> None:
     models_dir = root / "models"
     plots_dir = root / "plots"
 
-    model_filepath = models_dir / f"{args.job_id}.pt"
+    model_filepath = models_dir / f"{job_id}.pt"
 
     # Get device
     if torch.cuda.is_available():
@@ -79,7 +81,7 @@ def test() -> None:
         print("Running on CPU")
 
     # Get the data
-    region_coords = get_region_coords(args.region)
+    region_coords = get_region_coords(region)
     train_data_path, test_data_path = [], []
     for coord in region_coords:
         train_data_path.append(pathlib.Path(f"data/{coord}_train.csv").resolve())
@@ -114,7 +116,7 @@ def test() -> None:
     print("Extrapolation starts")
     num_windows = test_data.num_windows
 
-    if not args.plot_indiv:
+    if not plot_indiv:
         # Get ready to plot all windows on a single image
         side_len = math.ceil(math.sqrt(num_windows))
         fig, axes = plt.subplots(side_len, side_len, figsize=(100, 35), sharey=True)
@@ -140,7 +142,7 @@ def test() -> None:
             )
 
             indexes_to_keep = get_indexes_to_keep(
-                GT_STEPS_FOR_EXTRAPOLATION, args.num_to_keep
+                GT_STEPS_FOR_EXTRAPOLATION, num_to_keep
             )
 
             infect_hat = best_model(
@@ -181,7 +183,7 @@ def test() -> None:
             gt_infect = gt_infect.squeeze(-1).squeeze(-1).numpy()
 
             # Plot each window individually
-            if args.plot_indiv:
+            if plot_indiv:
                 first_date, last_date = dates[0].date(), dates[-1].date()
                 plt.figure(figsize=(20, 10))
                 plt.plot(dates, pred_infect, label="Prediction")
@@ -194,7 +196,7 @@ def test() -> None:
                 )
                 plt.legend(loc="best")
                 individual_extrapolation_plot_filepath = (
-                    plots_dir / f"{args.job_id}_{first_date}_{last_date}.png"
+                    plots_dir / f"{job_id}_{first_date}_{last_date}.png"
                 )
                 plt.savefig(individual_extrapolation_plot_filepath)
             else:
@@ -210,7 +212,7 @@ def test() -> None:
                 axes[row_idx, col_idx].set_ylabel("num_infect")
 
     # Note down the test set loss
-    loss_txt_filepath = plots_dir / f"{args.job_id}_test_loss.txt"
+    loss_txt_filepath = plots_dir / f"{job_id}_test_loss.txt"
     avg_mle_loss = total_mle_loss / test_data.num_windows
     avg_mse_loss = total_mse_loss / test_data.num_windows
     msg = f"Avg test MLE loss: {avg_mle_loss}\nAvg test MSE loss: {avg_mse_loss}\n"
@@ -219,7 +221,7 @@ def test() -> None:
     print(msg)
 
     # Plot all windows on a single image
-    if not args.plot_indiv:
+    if not plot_indiv:
         for j in range(num_windows + 1, side_len ** 2):
             row_idx = j // side_len
             col_idx = j % side_len
@@ -229,7 +231,7 @@ def test() -> None:
         col_idx_final = (num_windows - 1) % side_len
         lines, labels = axes[row_idx_final, col_idx_final].get_legend_handles_labels()
         fig.legend(lines, labels, fontsize=40, loc="upper left")
-        extrapolation_plot_filepath = plots_dir / f"{args.job_id}.png"
+        extrapolation_plot_filepath = plots_dir / f"{job_id}.png"
         plt.savefig(extrapolation_plot_filepath)
 
     print("Done")
