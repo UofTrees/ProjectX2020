@@ -55,11 +55,11 @@ Keyword arguments:
 Training a model with a set of arguments will generate a `.pt` file in `/results/models` uniquely identified by a `job_id` created based on the training arguments. You may use this `job_id` to specify which model to test.
 
 ```shell
-$ python test.py --region=cr --job_id='cr_euler_lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[64, 64]_window128_epochs1_rtol0.0001_atol1e-06' --plot_indiv=False --num_to_keep=100
+$ python test.py --region=cr --job_id='cr_euler_lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[8, 16, 8]_window128_epochs1_rtol0.0001_atol1e-06' --plot_indiv=False --num_to_keep=100
 ```
 Keyword arguments:
 - `region`: Whether to test using data from Costa Rica (`cr`), India (`in`), or both (`crin`). Default: `cr`
-- `job_id`: Job id of the model to test. Default: `cr_euler_lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[64, 64]_window128_epochs1_rtol0.0001_atol1e-06`
+- `job_id`: Job id of the model to test. Default: `cr_euler_lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[8, 16, 8]_window128_epochs1_rtol0.0001_atol1e-06`
 - `plot_indiv`: Whether or not to generate individual plots in `results/plots`. If not, all the plots will be created on a single image file. Default: `False`
 - `num_to_keep`: Number of time steps to use to create the initial latent state. This must be a positive integer no greater than 100.  Default: `100`
 

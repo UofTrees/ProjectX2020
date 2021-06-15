@@ -13,6 +13,9 @@ from mr_node.utils import get_region_coords
 EXTRAPOLATION_WINDOW_LENGTH = 250
 GT_STEPS_FOR_EXTRAPOLATION = 100
 
+DATA_PATH = "data"
+RESULTS_PATH = "results"
+
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -43,7 +46,7 @@ def test() -> None:
     parser.add_argument("--region", default="cr", type=str)
     parser.add_argument(
         "--job_id",
-        default="cr_euler_lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[64, 64]_window128_epochs1_rtol0.0001_atol1e-06",
+        default="cr_euler_lr3.0e-04_enc[8, 16, 8]_hidden4_ode[64, 64]_dec[8, 16, 8]_window128_epochs1_rtol0.0001_atol1e-06",
         type=str,
     )
     parser.add_argument(
@@ -66,9 +69,9 @@ def test() -> None:
         )
 
     # Get all folders and files
-    root = pathlib.Path("results").resolve()
-    models_dir = root / "models"
-    plots_dir = root / "plots"
+    results_root = pathlib.Path(RESULTS_PATH).resolve()
+    models_dir = results_root / "models"
+    plots_dir = results_root / "plots"
 
     model_filepath = models_dir / f"{job_id}.pt"
 
@@ -84,8 +87,8 @@ def test() -> None:
     region_coords = get_region_coords(region)
     train_data_path, test_data_path = [], []
     for coord in region_coords:
-        train_data_path.append(pathlib.Path(f"data/{coord}_train.csv").resolve())
-        test_data_path.append(pathlib.Path(f"data/{coord}_test.csv").resolve())
+        train_data_path.append(pathlib.Path(f"{DATA_PATH}/{coord}_train.csv").resolve())
+        test_data_path.append(pathlib.Path(f"{DATA_PATH}/{coord}_test.csv").resolve())
 
     train_data = Data(
         data_path=train_data_path,
